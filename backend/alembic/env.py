@@ -11,6 +11,8 @@ SRC_DIR = BACKEND_DIR / "src"
 
 sys.path.insert(0, str(SRC_DIR))
 
+from infrastructure.persistence import models  # noqa: E402, F401
+from infrastructure.persistence.base import Base  # noqa: E402
 from infrastructure.settings import settings  # noqa: E402
 
 
@@ -20,7 +22,7 @@ if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
 
-target_metadata = None
+target_metadata = Base.metadata
 
 
 config.set_main_option(
