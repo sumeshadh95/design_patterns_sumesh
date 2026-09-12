@@ -1,8 +1,10 @@
+import SensorList from "../features/sensors/SensorList";
+
 const sections = [
   {
     id: "sensors",
     title: "Sensors",
-    description: "Sensor functionality will be added in Phase 2.",
+    description: "Sensor functionality is managed here.",
   },
   {
     id: "config",
@@ -36,7 +38,7 @@ export default function DashboardPage() {
     <section className="space-y-6">
       <div>
         <p className="text-sm font-semibold uppercase tracking-wide text-emerald-600">
-          Phase 1
+          Phase 2
         </p>
 
         <h2 className="mt-2 text-3xl font-bold text-slate-900">
@@ -44,8 +46,7 @@ export default function DashboardPage() {
         </h2>
 
         <p className="mt-2 text-slate-600">
-          Phase 1 provides the application shell for features that will
-          be introduced in later phases.
+          Sensors are created through the Factory Method and stored in the devices table.
         </p>
       </div>
 
@@ -64,9 +65,15 @@ export default function DashboardPage() {
               {section.description}
             </p>
 
-            <span className="mt-4 inline-flex rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-600">
-              Phase 1 placeholder
-            </span>
+            {section.id === "sensors" ? (
+              <div className="mt-4">
+                <SensorList />
+              </div>
+            ) : (
+              <span className="mt-4 inline-flex rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-600">
+                Phase 2 placeholder
+              </span>
+            )}
           </article>
         ))}
       </div>
