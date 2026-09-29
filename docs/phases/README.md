@@ -22,3 +22,5 @@ This directory contains notes and answers for the Smart Greenhouse course phases
 - [Phase 1 — Skeleton answers](phase-01/questions.md)
 - [Phase 2 — Factory Method answers](phase-02/questions.md)
 - [Factory Method pattern note](../patterns/factory-method.md)
+- [Phase 4 — Builder answers](phase-04/questions.md)
+- [Builder pattern note](../patterns/builder.md)
