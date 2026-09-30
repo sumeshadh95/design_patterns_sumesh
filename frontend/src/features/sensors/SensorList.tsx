@@ -1,17 +1,42 @@
 import { useEffect, useState } from "react";
-import { createSensor, listSensors, type SensorDto } from "../../services/api";
+import {
+  createSensor,
+  fetchSensorReadings,
+  listSensors,
+  readSensor,
+  type ReadingDto,
+  type SensorDto,
+} from "../../services/api";
 
 export default function SensorList() {
   const [sensors, setSensors] = useState<SensorDto[]>([]);
+  const [readings, setReadings] = useState<Record<string, ReadingDto>>({});
   const [loading, setLoading] = useState(true);
+  const [readingDeviceId, setReadingDeviceId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const loadSensors = async () => {
     try {
       setLoading(true);
       setError(null);
-      const data = await listSensors();
-      setSensors(data);
+
+      const sensorData = await listSensors();
+      setSensors(sensorData);
+
+      const latestReadings = await Promise.all(
+        sensorData.map(async (sensor) => {
+          const history = await fetchSensorReadings(sensor.id, 1);
+          return [sensor.id, history[0]] as const;
+        }),
+      );
+
+      setReadings(
+        Object.fromEntries(
+          latestReadings.filter(
+            (entry): entry is readonly [string, ReadingDto] => entry[1] !== undefined,
+          ),
+        ),
+      );
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unknown error");
     } finally {
@@ -33,13 +58,27 @@ export default function SensorList() {
     }
   };
 
+  const handleReadNow = async (deviceId: string) => {
+    try {
+      setError(null);
+      setReadingDeviceId(deviceId);
+
+      const reading = await readSensor(deviceId);
+      setReadings((current) => ({ ...current, [deviceId]: reading }));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to read sensor");
+    } finally {
+      setReadingDeviceId(null);
+    }
+  };
+
   return (
     <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
       <div className="flex items-center justify-between gap-3">
         <div>
           <h3 className="text-xl font-semibold text-slate-900">Sensors</h3>
           <p className="text-sm text-slate-600">
-            Manage moisture and light sensors
+            Read persisted moisture and light sensor values
           </p>
         </div>
 
@@ -63,7 +102,7 @@ export default function SensorList() {
       </div>
 
       <div className="mt-6">
-        {loading && <p className="text-slate-600">Loading sensors…</p>}
+        {loading && <p className="text-slate-600">Loading sensors...</p>}
 
         {!loading && error && (
           <p className="rounded border border-red-200 bg-red-50 p-3 text-sm text-red-700">
@@ -75,28 +114,56 @@ export default function SensorList() {
           <p className="text-sm text-slate-500">No sensors yet.</p>
         )}
 
-        {!loading && !error && sensors.length > 0 && (
+        {!loading && sensors.length > 0 && (
           <div className="grid gap-3 md:grid-cols-2">
-            {sensors.map((sensor) => (
-              <div
-                key={sensor.id}
-                className="rounded-xl border border-slate-200 bg-slate-50 p-4"
-              >
-                <div className="flex items-center justify-between gap-2">
-                  <h4 className="font-semibold text-slate-900">
-                    {sensor.display_name ?? sensor.device_type}
-                  </h4>
-                  <span className="rounded-full bg-slate-200 px-2 py-1 text-xs font-medium text-slate-700">
-                    {sensor.device_type}
-                  </span>
-                </div>
+            {sensors.map((sensor) => {
+              const reading = readings[sensor.id];
+              const isReading = readingDeviceId === sensor.id;
 
-                <ul className="mt-3 space-y-1 text-sm text-slate-600">
-                  <li>ID: {sensor.id}</li>
-                  <li>Config: {JSON.stringify(sensor.default_config)}</li>
-                </ul>
-              </div>
-            ))}
+              return (
+                <article
+                  key={sensor.id}
+                  className="rounded-xl border border-slate-200 bg-slate-50 p-4"
+                >
+                  <div className="flex items-center justify-between gap-2">
+                    <h4 className="font-semibold text-slate-900">
+                      {sensor.display_name ?? sensor.device_type}
+                    </h4>
+
+                    <span className="rounded-full bg-slate-200 px-2 py-1 text-xs font-medium text-slate-700">
+                      {sensor.device_type}
+                    </span>
+                  </div>
+
+                  {reading ? (
+                    <div className="mt-3 rounded-lg bg-white p-3 text-sm">
+                      <p className="font-medium text-slate-900">
+                        Latest: {reading.value} {reading.unit}
+                      </p>
+                      <span className="mt-2 inline-flex rounded-full bg-indigo-100 px-2 py-1 text-xs font-medium text-indigo-700">
+                        {reading.source}
+                      </span>
+                      <p className="mt-2 text-xs text-slate-500">
+                        {new Date(reading.recorded_at).toLocaleString()}
+                      </p>
+                    </div>
+                  ) : (
+                    <p className="mt-3 text-sm text-slate-500">
+                      No stored readings yet.
+                    </p>
+                  )}
+
+                  <button
+                    type="button"
+                    disabled={isReading}
+                    onClick={() => void handleReadNow(sensor.id)}
+                    className="mt-4 rounded-lg bg-violet-600 px-3 py-2 text-sm font-medium text-white hover:bg-violet-700 disabled:cursor-not-allowed disabled:opacity-70"
+                  >
+                    {isReading ? "Reading..." : "Read now"}
+                  </button>
+                </article>
+              );
+            })}
           </div>
         )}
       </div>

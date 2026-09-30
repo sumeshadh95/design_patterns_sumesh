@@ -102,3 +102,42 @@ class ZoneRow(Base):
     location: Mapped[LocationRow] = relationship(back_populates="zones")
 
     __table_args__ = (Index("ix_zones_location_id", "location_id"),)
+
+
+class ReadingRow(Base):
+    __tablename__ = "sensor_readings"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        primary_key=True,
+        server_default=text("gen_random_uuid()"),
+    )
+    device_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("devices.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    value: Mapped[Decimal] = mapped_column(
+        Numeric(10, 4),
+        nullable=False,
+    )
+    unit: Mapped[str] = mapped_column(
+        String(32),
+        nullable=False,
+    )
+    source: Mapped[str] = mapped_column(
+        String(32),
+        nullable=False,
+    )
+    recorded_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+    )
+
+    __table_args__ = (
+        Index(
+            "ix_sensor_readings_device_recorded_at",
+            "device_id",
+            recorded_at.desc(),
+        ),
+    )

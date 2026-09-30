@@ -79,6 +79,14 @@ class DeviceRepository:
 
         return [self._row_to_device(row) for row in rows]
 
+    def get_device(self, device_id) -> Device | None:
+        row = self.session.get(DeviceRow, device_id)
+
+        if row is None:
+            return None
+
+        return self._row_to_device(row)
+
     def list_devices(
         self,
         *,

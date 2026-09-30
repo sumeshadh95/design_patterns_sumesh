@@ -165,3 +165,40 @@ export async function fetchLocationConfig(
 
   return response.json() as Promise<LocationConfigDto>;
 }
+export type ReadingDto = {
+  device_id: string;
+  value: number;
+  unit: string;
+  source: "simulation" | "vendor" | string;
+  recorded_at: string;
+};
+
+export async function readSensor(deviceId: string): Promise<ReadingDto> {
+  const response = await fetch(
+    `${API_BASE_URL}/api/sensors/${deviceId}/read`,
+    { method: "POST" },
+  );
+
+  if (!response.ok) {
+    const text = await response.text();
+    throw new Error(text || `Failed to read sensor: ${response.status}`);
+  }
+
+  return response.json() as Promise<ReadingDto>;
+}
+
+export async function fetchSensorReadings(
+  deviceId: string,
+  limit = 1,
+): Promise<ReadingDto[]> {
+  const response = await fetch(
+    `${API_BASE_URL}/api/sensors/${deviceId}/readings?limit=${limit}`,
+  );
+
+  if (!response.ok) {
+    const text = await response.text();
+    throw new Error(text || `Failed to fetch readings: ${response.status}`);
+  }
+
+  return response.json() as Promise<ReadingDto[]>;
+}
