@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import random
 from datetime import datetime, timezone
 
 from domain.devices.entity import Device
@@ -38,14 +39,14 @@ class VendorStubSensorAdapter(SensorPort):
         if device.device_type == "moisture_sensor":
             return {
                 "kind": "soil_probe",
-                "measurement": {"fraction": 0.37},
+                "measurement": {"fraction": round(random.uniform(0.25, 0.45), 3)},
                 "captured_at": captured_at,
             }
 
         if device.device_type == "light_sensor":
             return {
                 "kind": "lux_meter",
-                "measurement": {"illuminance": 560.0},
+                "measurement": {"illuminance": round(random.uniform(300.0, 800.0), 1)},
                 "captured_at": captured_at,
             }
 
