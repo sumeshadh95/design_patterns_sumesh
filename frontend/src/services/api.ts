@@ -202,3 +202,48 @@ export async function fetchSensorReadings(
 
   return response.json() as Promise<ReadingDto[]>;
 }
+
+export type LocationSummaryDto = {
+  id: string;
+  name: string;
+};
+
+export type DeviceCountsDto = {
+  sensor: number;
+  actuator: number;
+};
+
+export type ReadingSummaryDto = {
+  device_id: string;
+  value: number;
+  unit: string;
+  recorded_at: string;
+};
+
+export type RecommendationSummaryDto = {
+  action: string;
+  reason: string;
+};
+
+export type LocationOverviewDto = {
+  location: LocationSummaryDto;
+  device_counts: DeviceCountsDto;
+  latest_readings: ReadingSummaryDto[];
+  strategy_key: string | null;
+  last_recommendation: RecommendationSummaryDto | null;
+};
+
+export async function fetchOverview(
+  locationId: string,
+): Promise<LocationOverviewDto> {
+  const response = await fetch(
+    `${API_BASE_URL}/api/locations/${locationId}/overview`,
+  );
+
+  if (!response.ok) {
+    const text = await response.text();
+    throw new Error(text || `Failed to fetch overview: ${response.status}`);
+  }
+
+  return response.json() as Promise<LocationOverviewDto>;
+}

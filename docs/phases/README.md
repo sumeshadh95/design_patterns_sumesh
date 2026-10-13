@@ -30,3 +30,5 @@ This directory contains notes and answers for the Smart Greenhouse course phases
 - [Adapter pattern note](../patterns/adapter.md)
 - [Phase 6 — Strategy answers](phase-06/questions.md)
 - [Strategy pattern note](../patterns/strategy.md)
+- [Phase 7 — Facade answers](phase-07/questions.md)
+- [Facade pattern note](../patterns/facade.md)
