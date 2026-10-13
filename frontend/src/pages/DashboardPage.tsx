@@ -1,6 +1,7 @@
 import LocationConfigWizard from "../components/config/LocationConfigWizard";
 import DeviceList from "../components/devices/DeviceList";
 import SensorList from "../features/sensors/SensorList";
+import StrategyPanel from "../features/automation/StrategyPanel";
 
 export default function DashboardPage() {
   return (
@@ -26,6 +27,10 @@ export default function DashboardPage() {
       <div id="sensors">
         <SensorList />
       </div>
+      <div id="automation">
+        <StrategyPanel />
+      </div>
     </section>
+  
   );
 }

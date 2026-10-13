@@ -7,6 +7,8 @@ from interfaces.api.health import router as health_router
 from interfaces.api.sensors import router as sensors_router
 from interfaces.api.devices import router as devices_router
 from interfaces.api.locations import router as locations_router
+from interfaces.api.automation import router as automation_router
+
 app = FastAPI(
     title="Smart Greenhouse API",
     version="0.1.0",
@@ -32,6 +34,7 @@ app.include_router(health_router)
 app.include_router(sensors_router)
 app.include_router(devices_router)
 app.include_router(locations_router)
+app.include_router(automation_router)
 
 @app.get("/", include_in_schema=False)
 def root() -> dict[str, str]:

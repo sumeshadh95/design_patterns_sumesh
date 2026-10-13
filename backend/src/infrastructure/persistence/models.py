@@ -141,3 +141,35 @@ class ReadingRow(Base):
             recorded_at.desc(),
         ),
     )
+class AutomationRuleRow(Base):
+    __tablename__ = "automation_rules"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        primary_key=True,
+        server_default=text("gen_random_uuid()"),
+    )
+    location_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("locations.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    strategy_key: Mapped[str] = mapped_column(
+        String(32),
+        nullable=False,
+        default="conservative",
+        server_default=text("'conservative'"),
+    )
+    parameters: Mapped[dict | None] = mapped_column(
+        JSONB,
+        nullable=True,
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=text("now()"),
+    )
+
+    __table_args__ = (
+        Index("uq_automation_rules_location_id", "location_id", unique=True),
+    )
