@@ -5,6 +5,8 @@ import {
   type DeviceDto,
   type DeviceFamily,
 } from "../../services/api";
+import ActuatorStateBadge from "./ActuatorStateBadge";
+import ActuatorStateControl from "./ActuatorStateControl";
 import DeviceFamilySwitcher from "./DeviceFamilySwitcher";
 
 export default function DeviceList() {
@@ -42,6 +44,12 @@ export default function DeviceList() {
     } finally {
       setProvisioning(false);
     }
+  };
+
+  const handleDeviceChanged = (updated: DeviceDto) => {
+    setDevices((current) =>
+      current.map((device) => (device.id === updated.id ? updated : device)),
+    );
   };
 
   return (
@@ -90,6 +98,12 @@ export default function DeviceList() {
                 <div className="flex items-center justify-between gap-2">
                   <h4 className="font-semibold text-slate-900">{device.display_name}</h4>
                   <div className="flex gap-2">
+                    {device.state && (
+                      <ActuatorStateBadge
+                        state={device.state}
+                        allowedCommands={device.allowed_commands}
+                      />
+                    )}
                     <span className="rounded-full bg-slate-200 px-2 py-1 text-xs font-medium text-slate-700">
                       {device.role}
                     </span>
@@ -100,6 +114,13 @@ export default function DeviceList() {
                 </div>
                 <p className="mt-2 text-sm text-slate-600">{device.device_type}</p>
                 <p className="mt-2 text-xs text-slate-500 break-all">ID: {device.id}</p>
+
+                {device.state && (
+                  <ActuatorStateControl
+                    device={device}
+                    onChanged={handleDeviceChanged}
+                  />
+                )}
               </article>
             ))}
           </div>

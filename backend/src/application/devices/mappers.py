@@ -4,7 +4,11 @@ from application.devices.dto import DeviceDto
 from domain.devices.entity import Device
 
 
-def device_to_dto(device: Device) -> DeviceDto:
+def device_to_dto(
+    device: Device,
+    state: str | None = None,
+    allowed_commands: list[str] | None = None,
+) -> DeviceDto:
     if device.id is None:
         raise ValueError("Cannot map unpersisted device with id=None to DeviceDto")
 
@@ -15,6 +19,8 @@ def device_to_dto(device: Device) -> DeviceDto:
         device_family=device.device_family,
         display_name=device.display_name,
         default_config=device.default_config,
+        state=state,
+        allowed_commands=allowed_commands or [],
     )
 
 

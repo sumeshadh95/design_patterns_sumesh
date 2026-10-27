@@ -20,6 +20,12 @@ export type SensorCreatePayload = {
 
 export type DeviceRole = "sensor" | "actuator";
 export type DeviceFamily = "simulation" | "edge";
+export type ActuatorState =
+  | "off"
+  | "idle"
+  | "running"
+  | "error"
+  | "maintenance";
 
 export type DeviceDto = {
   id: string;
@@ -28,6 +34,8 @@ export type DeviceDto = {
   device_family: DeviceFamily | string;
   display_name: string;
   default_config: Record<string, unknown>;
+  state: ActuatorState | null;
+  allowed_commands: string[];
 };
 
 export async function fetchHealth(): Promise<HealthResponse> {
@@ -246,4 +254,32 @@ export async function fetchOverview(
   }
 
   return response.json() as Promise<LocationOverviewDto>;
+}
+
+export async function transitionDevice(
+  deviceId: string,
+  target: ActuatorState,
+): Promise<DeviceDto> {
+  const response = await fetch(
+    `${API_BASE_URL}/api/devices/${deviceId}/transition`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ target }),
+    },
+  );
+
+  if (!response.ok) {
+    const body = (await response.json().catch(() => null)) as {
+      detail?: unknown;
+    } | null;
+
+    throw new Error(
+      typeof body?.detail === "string"
+        ? body.detail
+        : `Transition failed: ${response.status}`,
+    );
+  }
+
+  return response.json() as Promise<DeviceDto>;
 }
