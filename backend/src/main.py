@@ -1,7 +1,13 @@
-﻿from fastapi import FastAPI
+﻿import asyncio
+import contextlib
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
+
+from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from scalar_fastapi import get_scalar_api_reference
 
+from application.readings.sampler import sampler_loop
 from infrastructure.settings import settings
 from interfaces.api.health import router as health_router
 from interfaces.api.sensors import router as sensors_router
@@ -11,11 +17,29 @@ from interfaces.api.automation import router as automation_router
 from interfaces.api.overview import router as overview_router
 
 
+@asynccontextmanager
+async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
+    # The simulation sampler runs in the background while the API is up.
+    task = (
+        asyncio.create_task(sampler_loop(settings.sampler_tick_seconds))
+        if settings.sampler_enabled
+        else None
+    )
+
+    yield
+
+    if task is not None:
+        task.cancel()
+        with contextlib.suppress(asyncio.CancelledError):
+            await task
+
+
 app = FastAPI(
     title="Smart Greenhouse API",
     version="0.1.0",
     docs_url=None,
     redoc_url=None,
+    lifespan=lifespan,
 )
 
 allowed_origins = [

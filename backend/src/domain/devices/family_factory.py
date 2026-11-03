@@ -42,15 +42,15 @@ class SimulationDeviceFactory(DeviceFamilyFactory):
         light = LightSensorCreator().create_sensor("Sim ambient light sensor")
 
         return [
-            _sensor_to_device(moisture, family=self.family_key, protocol="sim"),
-            _sensor_to_device(light, family=self.family_key, protocol="sim"),
+            _sensor_to_device(moisture, family=self.family_key, protocol="simulation"),
+            _sensor_to_device(light, family=self.family_key, protocol="simulation"),
             Device(
                 id=None,
                 device_type="water_pump",
                 role="actuator",
                 device_family=self.family_key,
                 display_name="Sim irrigation pump",
-                default_config={"protocol": "sim", "max_flow_lpm": 18},
+                default_config={"protocol": "simulation", "max_flow_lpm": 18},
             ),
             Device(
                 id=None,
@@ -58,7 +58,7 @@ class SimulationDeviceFactory(DeviceFamilyFactory):
                 role="actuator",
                 device_family=self.family_key,
                 display_name="Sim grow light",
-                default_config={"protocol": "sim", "spectrum": "full"},
+                default_config={"protocol": "simulation", "spectrum": "full"},
             ),
         ]
 
@@ -73,15 +73,15 @@ class EdgeHardwareFactory(DeviceFamilyFactory):
         light = LightSensorCreator().create_sensor("Edge lux sensor")
 
         return [
-            _sensor_to_device(moisture, family=self.family_key, protocol="gpio-stub"),
-            _sensor_to_device(light, family=self.family_key, protocol="gpio-stub"),
+            _sensor_to_device(moisture, family=self.family_key, protocol="mqtt"),
+            _sensor_to_device(light, family=self.family_key, protocol="mqtt"),
             Device(
                 id=None,
                 device_type="water_pump",
                 role="actuator",
                 device_family=self.family_key,
                 display_name="Edge irrigation pump",
-                default_config={"protocol": "gpio-stub", "pin": 17},
+                default_config={"protocol": "mqtt", "pin": 17},
             ),
             Device(
                 id=None,
@@ -89,7 +89,7 @@ class EdgeHardwareFactory(DeviceFamilyFactory):
                 role="actuator",
                 device_family=self.family_key,
                 display_name="Edge grow light",
-                default_config={"protocol": "gpio-stub", "pin": 27},
+                default_config={"protocol": "mqtt", "pin": 27},
             ),
         ]
 

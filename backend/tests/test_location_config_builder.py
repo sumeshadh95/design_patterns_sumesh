@@ -43,3 +43,19 @@ def test_build_rejects_invalid_thresholds() -> None:
             .add_zone("Bench 1", 0.6, 0.4)
             .build()
         )
+
+
+def test_build_rejects_duplicate_zone_names() -> None:
+    with pytest.raises(ConfigurationError, match="unique"):
+        (
+            LocationConfigBuilder()
+            .with_location_name("Lab Site A")
+            .add_zone("Bench 1", 0.2, 0.4)
+            .add_zone("bench 1", 0.3, 0.5)
+            .build()
+        )
+
+
+def test_builder_has_no_device_assignment() -> None:
+    # Devices are placed in zones by ZoneAssignmentService after save.
+    assert not hasattr(LocationConfigBuilder, "add_device")

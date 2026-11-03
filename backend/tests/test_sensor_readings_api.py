@@ -20,11 +20,13 @@ def test_read_inserts_sensor_reading() -> None:
 
     sensor_id = create_response.json()["id"]
 
-    read_response = client.post(f"/api/sensors/{sensor_id}/read")
+    first = client.post(f"/api/sensors/{sensor_id}/read")
+    second = client.post(f"/api/sensors/{sensor_id}/read")
 
-    assert read_response.status_code == 200
+    assert first.status_code == 200
+    assert second.status_code == 200
 
-    reading = read_response.json()
+    reading = first.json()
 
     assert reading["device_id"] == sensor_id
     assert reading["unit"] == "vwc"
@@ -36,10 +38,13 @@ def test_read_inserts_sensor_reading() -> None:
 
     assert history_response.status_code == 200
 
-    history = history_response.json()
+    # The running sampler may add its own rows, so check that both manual
+    # reads were appended rather than counting rows exactly.
+    stored = {row["recorded_at"] for row in history_response.json()}
 
-    assert len(history) == 1
-    assert history[0]["device_id"] == sensor_id
+    assert first.json()["recorded_at"] in stored
+    assert second.json()["recorded_at"] in stored
+    assert all(row["device_id"] == sensor_id for row in history_response.json())
 
 
 def test_read_missing_sensor_returns_404() -> None:

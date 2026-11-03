@@ -124,6 +124,13 @@ is a demo endpoint. Phase 10 will change state through commands instead.
 409 is used for an illegal transition because the request is well formed
 but conflicts with the current state of the resource.
 
+## Where the state is shown
+
+State and commands stay on `device_id`. The state badge and the transition
+control are on each actuator card in the Devices section. The Phase 4 zone
+device list (`GET /api/locations/{id}/zones/{zone_id}/devices`) returns the
+same `state` and `allowed_commands`, so Phase 10 can open actuator controls
+from a zone.
 ## Where in code
 
 | Role | File |

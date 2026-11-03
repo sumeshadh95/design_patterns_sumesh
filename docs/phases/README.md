@@ -6,11 +6,11 @@ This directory contains notes and answers for the Smart Greenhouse course phases
 
 1. **Phase 1 — Skeleton:** runnable three-tier foundation.
 2. **Phase 2 — Factory Method:** devices, sensor creators, and the Sensors dashboard section.
-3. **Phase 3 — Abstract Factory**
-4. **Phase 4 — Builder**
-5. **Phase 5 — Adapter**
-6. **Phase 6 — Strategy:** pluggable irrigation policies saved per location.
-7. **Phase 7 — Facade:** one overview endpoint and dashboard section per location.
+3. **Phase 3 — Abstract Factory:** simulation and edge device families.
+4. **Phase 4 — Builder:** location configuration, location list and delete, zone add/edit/delete, and device-to-zone assignment.
+5. **Phase 5 — Adapter:** sensor ports and adapters (simulation, vendor stub, MQTT translator), one ingest path, and the simulation sampler.
+6. **Phase 6 — Strategy:** pluggable irrigation policies saved per location and evaluated per zone.
+7. **Phase 7 — Facade:** one overview endpoint and dashboard section per location, grouped by zone.
 8. **Phase 8 — State:** persisted actuator lifecycle with guarded transitions.
 9. **Phase 9 — Decorator**
 10. **Phase 10 — Command**
@@ -34,3 +34,19 @@ This directory contains notes and answers for the Smart Greenhouse course phases
 - [Facade pattern note](../patterns/facade.md)
 - [Phase 8 — State answers](phase-08/questions.md)
 - [State pattern note](../patterns/state.md)
+
+## Migration chain
+
+| Revision | Phase | Adds |
+| --- | --- | --- |
+| `001` | 1 | baseline |
+| `d6e3a525172c` | 2 | `devices` (with `role`) |
+| `5479eeddebbe` | 3 | `devices.device_family` |
+| `f828466f474c` | 4 | `locations`, `zones` |
+| `ca9bdac13be8` | 5 | `sensor_readings` (`571c1412ac65` is an empty follow-up) |
+| `0cf1c6efdcaa` | 6 | `automation_rules` |
+| `b676258b7285` | 8 | `actuator_states` |
+| `c3a1d5e7f902` | 4 (update) | `devices.zone_id`, `devices.location_id` |
+| `d8b2e6f4a113` | 5 (update) | `devices.sampling_interval_seconds`, `devices.tracking_enabled`, protocol values |
+
+The last two revisions add the updated Phase 4 and Phase 5 requirements. They come after `b676258b7285` because applied revisions are never edited.

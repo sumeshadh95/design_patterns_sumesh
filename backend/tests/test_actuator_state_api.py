@@ -99,3 +99,23 @@ def test_transition_sensor_returns_404(provisioned: list[dict]) -> None:
     response = transition(sensor_id, "running")
 
     assert response.status_code == 404
+
+
+def test_zone_device_list_shows_actuator_state(provisioned: list[dict]) -> None:
+    config = client.post(
+        "/api/locations/config",
+        json={
+            "location_name": f"State Site {uuid4()}",
+            "zones": [{"name": "Bench 1", "moisture_threshold_low": 0.2, "moisture_threshold_high": 0.4}],
+        },
+    ).json()
+    location_id = config["location"]["id"]
+    zone_id = config["zones"][0]["id"]
+    pump_id = find(provisioned, "water_pump")["id"]
+
+    client.patch(f"/api/devices/{pump_id}/zone", json={"zone_id": zone_id})
+    listed = client.get(f"/api/locations/{location_id}/zones/{zone_id}/devices").json()
+
+    assert [d["id"] for d in listed] == [pump_id]
+    assert listed[0]["state"] is not None
+    assert listed[0]["allowed_commands"] == current(pump_id)["allowed_commands"]

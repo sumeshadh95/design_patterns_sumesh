@@ -33,7 +33,7 @@ class ConservativeMoistureStrategy(AutomationStrategy):
         if context.moisture is None:
             return Recommendation(
                 action="wait",
-                reason="No moisture reading yet",
+                reason="No moisture sensor reading in this zone",
             )
 
         if context.moisture < context.low:
@@ -66,7 +66,7 @@ class AggressiveMoistureStrategy(AutomationStrategy):
         if context.moisture is None:
             return Recommendation(
                 action="wait",
-                reason="No moisture reading yet",
+                reason="No moisture sensor reading in this zone",
             )
 
         if context.moisture < context.high:

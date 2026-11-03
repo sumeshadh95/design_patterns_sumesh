@@ -1,19 +1,23 @@
 import { useEffect, useState } from "react";
+import { useLocationZones, zoneLabel } from "../../hooks/useLocationZones";
 import {
   createSensor,
   fetchSensorReadings,
   listSensors,
   readSensor,
+  type DeviceDto,
   type ReadingDto,
   type SensorDto,
 } from "../../services/api";
+import SamplingControls from "./SamplingControls";
 
-async function fetchSensorsWithLatest(): Promise<{
-  sensors: SensorDto[];
-  readings: Record<string, ReadingDto>;
-}> {
-  const sensors = await listSensors();
+// Temporary: cards poll the latest stored reading so sampler rows show up
+// without "Read now". Phase 12 replaces this poll with a WebSocket push.
+const POLL_MS = 5000;
 
+async function fetchLatestReadings(
+  sensors: SensorDto[],
+): Promise<Record<string, ReadingDto>> {
   const latestReadings = await Promise.all(
     sensors.map(async (sensor) => {
       const history = await fetchSensorReadings(sensor.id, 1);
@@ -21,17 +25,28 @@ async function fetchSensorsWithLatest(): Promise<{
     }),
   );
 
-  return {
-    sensors,
-    readings: Object.fromEntries(
-      latestReadings.filter(
-        (entry): entry is readonly [string, ReadingDto] => entry[1] !== undefined,
-      ),
+  return Object.fromEntries(
+    latestReadings.filter(
+      (entry): entry is readonly [string, ReadingDto] => entry[1] !== undefined,
     ),
-  };
+  );
 }
 
-export default function SensorList() {
+async function fetchSensorsWithLatest(): Promise<{
+  sensors: SensorDto[];
+  readings: Record<string, ReadingDto>;
+}> {
+  const sensors = await listSensors();
+
+  return { sensors, readings: await fetchLatestReadings(sensors) };
+}
+
+type Props = {
+  version: number;
+};
+
+export default function SensorList({ version }: Props) {
+  const { configs } = useLocationZones(version);
   const [sensors, setSensors] = useState<SensorDto[]>([]);
   const [readings, setReadings] = useState<Record<string, ReadingDto>>({});
   const [loading, setLoading] = useState(true);
@@ -80,7 +95,32 @@ export default function SensorList() {
     return () => {
       mounted = false;
     };
-  }, []);
+  }, [version]);
+
+  useEffect(() => {
+    if (sensors.length === 0) {
+      return;
+    }
+
+    let mounted = true;
+
+    const timer = window.setInterval(() => {
+      fetchLatestReadings(sensors)
+        .then((latest) => {
+          if (mounted) {
+            setReadings((current) => ({ ...current, ...latest }));
+          }
+        })
+        .catch(() => {
+          // Keep the last values; the next poll tries again.
+        });
+    }, POLL_MS);
+
+    return () => {
+      mounted = false;
+      window.clearInterval(timer);
+    };
+  }, [sensors]);
 
   const handleCreate = async (type: "moisture" | "light") => {
     try {
@@ -106,13 +146,28 @@ export default function SensorList() {
     }
   };
 
+  const handleSamplingSaved = (device: DeviceDto) => {
+    setSensors((current) =>
+      current.map((sensor) =>
+        sensor.id === device.id
+          ? {
+              ...sensor,
+              sampling_interval_seconds: device.sampling_interval_seconds,
+              tracking_enabled: device.tracking_enabled,
+            }
+          : sensor,
+      ),
+    );
+  };
+
   return (
     <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
       <div className="flex items-center justify-between gap-3">
         <div>
           <h3 className="text-xl font-semibold text-slate-900">Sensors</h3>
           <p className="text-sm text-slate-600">
-            Read persisted moisture and light sensor values
+            Latest stored readings. Cards refresh every few seconds (temporary
+            poll until the Phase 12 WebSocket).
           </p>
         </div>
 
@@ -153,6 +208,7 @@ export default function SensorList() {
             {sensors.map((sensor) => {
               const reading = readings[sensor.id];
               const isReading = readingDeviceId === sensor.id;
+              const zone = zoneLabel(configs, sensor.zone_id);
 
               return (
                 <article
@@ -168,6 +224,10 @@ export default function SensorList() {
                       {sensor.device_type}
                     </span>
                   </div>
+
+                  <p className="mt-1 text-xs text-slate-500">
+                    {zone ?? "Unassigned"}
+                  </p>
 
                   {reading ? (
                     <div className="mt-3 rounded-lg bg-white p-3 text-sm">
@@ -186,6 +246,14 @@ export default function SensorList() {
                       No stored readings yet.
                     </p>
                   )}
+
+                  <SamplingControls
+                    key={`${sensor.id}:${sensor.sampling_interval_seconds}:${sensor.tracking_enabled}`}
+                    sensorId={sensor.id}
+                    intervalSeconds={sensor.sampling_interval_seconds}
+                    trackingEnabled={sensor.tracking_enabled}
+                    onSaved={handleSamplingSaved}
+                  />
 
                   <button
                     type="button"

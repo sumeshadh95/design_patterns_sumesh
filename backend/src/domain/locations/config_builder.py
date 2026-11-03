@@ -6,6 +6,31 @@ from domain.locations.entity import Location, LocationConfig, Zone
 from domain.locations.errors import ConfigurationError
 
 
+def validate_zone_fields(
+    name: str,
+    moisture_threshold_low: float,
+    moisture_threshold_high: float,
+) -> None:
+    """Zone rules shared by build() and by zone add/edit on a saved location."""
+    if not name.strip():
+        raise ConfigurationError("Zone name is required.")
+
+    if not 0.0 <= moisture_threshold_low <= 1.0:
+        raise ConfigurationError(
+            "Zone low moisture threshold must be between 0.0 and 1.0."
+        )
+
+    if not 0.0 <= moisture_threshold_high <= 1.0:
+        raise ConfigurationError(
+            "Zone high moisture threshold must be between 0.0 and 1.0."
+        )
+
+    if moisture_threshold_low >= moisture_threshold_high:
+        raise ConfigurationError(
+            "Zone low moisture threshold must be lower than its high threshold."
+        )
+
+
 class LocationConfigBuilder:
     def __init__(self) -> None:
         self._location_name: str | None = None
@@ -40,23 +65,15 @@ class LocationConfigBuilder:
             raise ConfigurationError("At least one zone is required.")
 
         for zone in self._zones:
-            if not zone.name:
-                raise ConfigurationError("Zone name is required.")
+            validate_zone_fields(
+                zone.name,
+                zone.moisture_threshold_low,
+                zone.moisture_threshold_high,
+            )
 
-            if not 0.0 <= zone.moisture_threshold_low <= 1.0:
-                raise ConfigurationError(
-                    "Zone low moisture threshold must be between 0.0 and 1.0."
-                )
-
-            if not 0.0 <= zone.moisture_threshold_high <= 1.0:
-                raise ConfigurationError(
-                    "Zone high moisture threshold must be between 0.0 and 1.0."
-                )
-
-            if zone.moisture_threshold_low >= zone.moisture_threshold_high:
-                raise ConfigurationError(
-                    "Zone low moisture threshold must be lower than its high threshold."
-                )
+        names = [zone.name.lower() for zone in self._zones]
+        if len(names) != len(set(names)):
+            raise ConfigurationError("Zone names must be unique within a location.")
 
         return LocationConfig(
             location=Location(

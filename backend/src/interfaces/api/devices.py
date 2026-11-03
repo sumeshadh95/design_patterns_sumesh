@@ -9,16 +9,33 @@ from application.devices.actuator_state_service import (
     ActuatorNotFoundError,
     ActuatorStateService,
 )
-from application.devices.dto import DeviceDto, TransitionRequest
+from application.devices.dto import (
+    AssignZoneRequest,
+    DeviceDto,
+    SamplingUpdateRequest,
+    TransitionRequest,
+)
 from application.devices.family_service import DeviceFamilyService
+from application.devices.sampling_service import SamplingService
+from application.locations.zone_assignment_service import ZoneAssignmentService
 from domain.actuators.state import IllegalTransitionError, UnknownStateError
+from domain.devices.sampling import SamplingConfigError
+from domain.locations.errors import DeviceNotFoundError, ZoneNotFoundError
 from infrastructure.db import get_db
 from infrastructure.persistence.actuator_state_repository import (
     ActuatorStateRepository,
 )
 from infrastructure.persistence.device_repository import DeviceRepository
+from infrastructure.persistence.location_repository import LocationRepository
 
 router = APIRouter(prefix="/api/devices", tags=["devices"])
+
+
+def _describe_one(db: Session, device_repository: DeviceRepository, device):
+    return ActuatorStateService(
+        device_repository,
+        ActuatorStateRepository(db),
+    ).describe([device])[0]
 
 
 @router.get("", response_model=list[DeviceDto])
@@ -63,6 +80,65 @@ def provision_devices(
     return ActuatorStateService(device_repository, state_repository).describe(
         devices
     )
+
+
+@router.patch(
+    "/{device_id}/zone",
+    response_model=DeviceDto,
+    responses={404: {"description": "Device or zone not found"}},
+)
+def assign_device_zone(
+    device_id: UUID,
+    payload: AssignZoneRequest,
+    db: Session = Depends(get_db),
+):
+    device_repository = DeviceRepository(db)
+    service = ZoneAssignmentService(device_repository, LocationRepository(db))
+
+    try:
+        device = service.assign(device_id, payload.zone_id)
+    except (DeviceNotFoundError, ZoneNotFoundError) as exc:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(exc),
+        ) from exc
+
+    return _describe_one(db, device_repository, device)
+
+
+@router.patch(
+    "/{device_id}/sampling",
+    response_model=DeviceDto,
+    responses={
+        400: {"description": "Interval below 5 seconds"},
+        404: {"description": "Device not found"},
+    },
+)
+def update_device_sampling(
+    device_id: UUID,
+    payload: SamplingUpdateRequest,
+    db: Session = Depends(get_db),
+):
+    device_repository = DeviceRepository(db)
+
+    try:
+        device = SamplingService(device_repository).update(
+            device_id,
+            payload.sampling_interval_seconds,
+            payload.tracking_enabled,
+        )
+    except SamplingConfigError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(exc),
+        ) from exc
+    except DeviceNotFoundError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(exc),
+        ) from exc
+
+    return _describe_one(db, device_repository, device)
 
 
 @router.post(

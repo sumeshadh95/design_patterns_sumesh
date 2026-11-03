@@ -38,7 +38,7 @@ class AutomationStrategy(ABC):
 ```
 
 `LocationAutomationContext` is a frozen dataclass with `location_id`,
-`moisture`, `light`, `low` and `high`. `Recommendation` has `action`
+`zone_id`, `moisture`, `light`, `low` and `high`. There is one context per zone. `Recommendation` has `action`
 (`irrigate` or `wait`), `reason` and an optional `score`.
 
 `get_strategy(key)` looks the key up in a registry and raises
@@ -60,7 +60,9 @@ Same context, different recommendation:
 | 0.50 | 0.25 | 0.45 | `wait` | `wait` |
 
 The strategies disagree for every moisture value inside the band
-`low <= moisture < high`. With no moisture reading yet, both return `wait`.
+`low <= moisture < high`. A zone with no moisture reading from its own sensors gets
+`moisture = None`, and both strategies return `wait` with the reason
+"No moisture sensor reading in this zone".
 
 ## Persistence choice
 
@@ -92,6 +94,7 @@ key `conservative`.
 | API routes | `backend/src/interfaces/api/automation.py` |
 | Dashboard panel | `frontend/src/features/automation/StrategyPanel.tsx` |
 | Unit tests | `backend/tests/test_strategy.py` |
+| API tests (per-zone evaluate) | `backend/tests/test_automation_api.py` |
 
 ## API
 
@@ -106,24 +109,24 @@ An unknown key returns 400. A missing location returns 404.
 
 `AutomationService.evaluate` does the following:
 
-1. Checks that the location exists.
-2. Loads the persisted `strategy_key` for the location.
-3. Loads the low and high thresholds from the location's zones.
-4. Loads the latest moisture (`vwc`) and light (`lux`) values from
-   `sensor_readings`.
-5. Builds a `LocationAutomationContext` and calls
-   `get_strategy(key).decide(context)`.
+1. Checks that the location exists (404 otherwise).
+2. Loads the persisted `strategy_key` for the location (default
+   `conservative` when none is saved).
+3. For **each zone** of the location, builds one `LocationAutomationContext`
+   from that zone's low and high thresholds and the newest `vwc` and `lux`
+   readings among sensors whose `devices.zone_id` is that zone.
+4. Calls `get_strategy(key).decide(context)` once per zone.
+5. Returns `{ location_id, strategy_key, action, reason }` plus a `zones`
+   list with each zone's own action and reason. The top-level action is
+   `irrigate` when any zone needs water, otherwise `wait` with the reason
+   "No zone needs water."
+
+A reading from an unassigned device, or from a sensor in another zone, is
+never used. Readings may come from a manual read, the Phase 5 sampler or a
+translated MQTT payload; evaluate only reads the newest stored row. This
+phase adds no scheduler and no broker.
 
 The strategies import no SQLAlchemy and never see ORM rows.
-
-Two limits of the current version:
-
-- A location with several zones is evaluated with the thresholds of its
-  first zone by name.
-- `devices` has no `location_id`, so the latest reading is the newest
-  reading of that unit across all sensors, not only the sensors of one
-  location.
-
 ## Decide, not execute
 
 A strategy only recommends `irrigate` or `wait`. It does not start a pump.
@@ -147,7 +150,7 @@ midpoint of the band.
            if context.moisture is None:
                return Recommendation(
                    action="wait",
-                   reason="No moisture reading yet",
+                   reason="No moisture sensor reading in this zone",
                )
 
            midpoint = (context.low + context.high) / 2

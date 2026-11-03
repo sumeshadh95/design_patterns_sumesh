@@ -10,10 +10,11 @@ from domain.automation.strategy import (
 
 
 def make_context(
-    moisture: float,
+    moisture: float | None,
 ) -> LocationAutomationContext:
     return LocationAutomationContext(
         location_id=uuid4(),
+        zone_id=uuid4(),
         moisture=moisture,
         light=None,
         low=0.25,
@@ -45,6 +46,14 @@ def test_aggressive_differs_on_same_context():
 
     assert conservative.action != aggressive.action
     assert aggressive.action == "irrigate"
+
+
+def test_zone_without_moisture_reading_waits():
+    for key in ("conservative", "aggressive"):
+        recommendation = get_strategy(key).decide(make_context(None))
+
+        assert recommendation.action == "wait"
+        assert "no moisture" in recommendation.reason.lower()
 
 
 def test_unknown_key_rejected():

@@ -1,8 +1,9 @@
 from __future__ import annotations
 
+from datetime import datetime
 from uuid import UUID
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from domain.sensors.reading import Reading
@@ -44,6 +45,19 @@ class ReadingRepository:
         )
 
         return [self._row_to_reading(row) for row in rows]
+
+    def latest_recorded_at(self, device_ids: list[UUID]) -> dict[UUID, datetime]:
+        if not device_ids:
+            return {}
+
+        # One grouped query for every device, not one query per device.
+        rows = self._session.execute(
+            select(ReadingRow.device_id, func.max(ReadingRow.recorded_at))
+            .where(ReadingRow.device_id.in_(device_ids))
+            .group_by(ReadingRow.device_id)
+        ).all()
+
+        return {device_id: recorded_at for device_id, recorded_at in rows}
 
     @staticmethod
     def _row_to_reading(row: ReadingRow) -> Reading:

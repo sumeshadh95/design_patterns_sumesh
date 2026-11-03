@@ -1,115 +1,86 @@
 import { useState } from "react";
+import { useLocationZones } from "../../hooks/useLocationZones";
+import {
+  evaluateAutomation,
+  saveStrategy,
+  type RecommendationDto,
+  type StrategyKey,
+} from "../../services/api";
 
-const API_BASE_URL =
-  import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8000";
-
-type EvaluateResult = {
-  location_id: string;
-  strategy_key: string;
-  action: string;
-  reason: string;
+type Props = {
+  version: number;
+  onChanged: () => void;
 };
 
-export default function StrategyPanel() {
-  const [locationId, setLocationId] = useState("");
-  const [strategyKey, setStrategyKey] = useState("conservative");
-  const [result, setResult] = useState<EvaluateResult | null>(null);
+export default function StrategyPanel({ version, onChanged }: Props) {
+  const { configs } = useLocationZones(version);
+  const [chosenId, setChosenId] = useState("");
+  const [strategyKey, setStrategyKey] = useState<StrategyKey>("conservative");
+  const [result, setResult] = useState<RecommendationDto | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
-  async function save() {
+  const locationId =
+    configs.find((config) => config.location.id === chosenId)?.location.id ??
+    configs[0]?.location.id ??
+    "";
+
+  const run = async (action: () => Promise<void>, fallback: string) => {
     setError(null);
     setSuccess(null);
     setLoading(true);
 
     try {
-      const response = await fetch(
-        `${API_BASE_URL}/api/locations/${locationId}/automation`,
-        {
-          method: "PUT",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            strategy_key: strategyKey,
-          }),
-        },
-      );
-
-      if (!response.ok) {
-        throw new Error(
-          (await response.text()) || `Save failed ${response.status}`,
-        );
-      }
-
-      setSuccess("Strategy saved");
-    } catch (error) {
-      setError(
-        error instanceof Error
-          ? error.message
-          : "Save failed",
-      );
+      await action();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : fallback);
     } finally {
       setLoading(false);
     }
-  }
+  };
 
-  async function evaluate() {
-    setError(null);
-    setSuccess(null);
-    setLoading(true);
+  const save = () =>
+    run(async () => {
+      await saveStrategy(locationId, strategyKey);
+      setSuccess(`Strategy saved: ${strategyKey}`);
+      onChanged();
+    }, "Save failed");
 
-    try {
-      const response = await fetch(
-        `${API_BASE_URL}/api/locations/${locationId}/automation/evaluate`,
-        {
-          method: "POST",
-        },
-      );
+  const evaluate = () =>
+    run(async () => {
+      setResult(await evaluateAutomation(locationId));
+    }, "Evaluate failed");
 
-      if (!response.ok) {
-        throw new Error(
-          (await response.text()) ||
-            `Evaluate failed ${response.status}`,
-        );
-      }
-
-      const data = (await response.json()) as EvaluateResult;
-      setResult(data);
-    } catch (error) {
-      setError(
-        error instanceof Error
-          ? error.message
-          : "Evaluate failed",
-      );
-    } finally {
-      setLoading(false);
-    }
-  }
+  const shown = result && result.location_id === locationId ? result : null;
 
   return (
     <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-      <h3 className="text-xl font-semibold text-slate-900">
-        Automation Strategy
-      </h3>
-
+      <h3 className="text-xl font-semibold text-slate-900">Automation Strategy</h3>
       <p className="text-sm text-slate-600">
-        Save strategy key then evaluate from DB readings
+        Save a strategy key, then evaluate each zone from its own sensors
       </p>
 
-      <input
-        className="mt-4 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
-        placeholder="location_id (uuid)"
-        value={locationId}
-        onChange={(event) => setLocationId(event.target.value)}
-      />
-
-      <div className="mt-3 flex gap-2">
+      <div className="mt-4 flex flex-wrap gap-2">
         <select
+          aria-label="Location"
+          value={locationId}
+          onChange={(event) => setChosenId(event.target.value)}
+          className="rounded-lg border border-slate-300 px-3 py-2 text-sm"
+        >
+          {configs.length === 0 && <option value="">No locations</option>}
+          {configs.map(({ location }) => (
+            <option key={location.id} value={location.id}>
+              {location.name}
+            </option>
+          ))}
+        </select>
+
+        <select
+          aria-label="Strategy"
           className="rounded-lg border border-slate-300 px-3 py-2 text-sm"
           value={strategyKey}
-          onChange={(event) => setStrategyKey(event.target.value)}
+          onChange={(event) => setStrategyKey(event.target.value as StrategyKey)}
         >
           <option value="conservative">conservative</option>
           <option value="aggressive">aggressive</option>
@@ -146,17 +117,21 @@ export default function StrategyPanel() {
         </p>
       )}
 
-      {result && (
+      {shown && (
         <div className="mt-3 rounded-lg bg-slate-50 p-3 text-sm">
-          <p className="font-medium text-slate-900">
-            action: {result.action}
-          </p>
-          <p className="text-slate-700">
-            reason: {result.reason}
-          </p>
-          <p className="text-xs text-slate-500">
-            {result.strategy_key}
-          </p>
+          <p className="font-medium text-slate-900">action: {shown.action}</p>
+          <p className="text-slate-700">reason: {shown.reason}</p>
+          <p className="text-xs text-slate-500">strategy: {shown.strategy_key}</p>
+
+          <ul className="mt-2 space-y-1 border-t border-slate-200 pt-2">
+            {shown.zones.map((zone) => (
+              <li key={zone.zone_id} className="text-slate-700">
+                <span className="font-medium text-slate-900">{zone.zone_name}</span>
+                {": "}
+                {zone.action}, {zone.reason}
+              </li>
+            ))}
+          </ul>
         </div>
       )}
     </div>

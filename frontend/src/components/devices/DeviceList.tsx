@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useLocationZones } from "../../hooks/useLocationZones";
 import {
   fetchDevices,
   provisionDeviceFamily,
@@ -8,8 +9,15 @@ import {
 import ActuatorStateBadge from "./ActuatorStateBadge";
 import ActuatorStateControl from "./ActuatorStateControl";
 import DeviceFamilySwitcher from "./DeviceFamilySwitcher";
+import ZonePicker from "./ZonePicker";
 
-export default function DeviceList() {
+type Props = {
+  version: number;
+  onChanged: () => void;
+};
+
+export default function DeviceList({ version, onChanged }: Props) {
+  const { configs } = useLocationZones(version);
   const [family, setFamily] = useState<DeviceFamily>("simulation");
   const [devices, setDevices] = useState<DeviceDto[]>([]);
   const [loading, setLoading] = useState(true);
@@ -29,6 +37,8 @@ export default function DeviceList() {
     }
   };
 
+  // Reloads on a family switch and after any location or zone change,
+  // so devices in a deleted zone show as unassigned.
   useEffect(() => {
     let mounted = true;
 
@@ -56,13 +66,12 @@ export default function DeviceList() {
     return () => {
       mounted = false;
     };
-  }, [family]);
+  }, [family, version]);
 
   const handleFamilyChange = (nextFamily: DeviceFamily) => {
     setLoading(true);
     setFamily(nextFamily);
   };
-
 
   const handleProvision = async () => {
     try {
@@ -83,13 +92,18 @@ export default function DeviceList() {
     );
   };
 
+  const handleAssigned = (updated: DeviceDto) => {
+    handleDeviceChanged(updated);
+    onChanged();
+  };
+
   return (
     <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h3 className="text-xl font-semibold text-slate-900">Devices</h3>
           <p className="text-sm text-slate-600">
-            Provision and inspect device families
+            Provision device families and place devices in zones
           </p>
         </div>
 
@@ -145,6 +159,13 @@ export default function DeviceList() {
                 </div>
                 <p className="mt-2 text-sm text-slate-600">{device.device_type}</p>
                 <p className="mt-2 text-xs text-slate-500 break-all">ID: {device.id}</p>
+
+                <ZonePicker
+                  deviceId={device.id}
+                  zoneId={device.zone_id}
+                  configs={configs}
+                  onAssigned={handleAssigned}
+                />
 
                 {device.state && (
                   <ActuatorStateControl

@@ -7,6 +7,10 @@ from domain.devices.entity import Device
 from domain.sensors.ports import SensorPort
 from domain.sensors.reading import Reading
 
+# Documented generation ranges for simulated values.
+MOISTURE_RANGE_VWC = (0.2, 0.6)
+LIGHT_RANGE_LUX = (200.0, 2000.0)
+
 
 class SimulationSensorAdapter(SensorPort):
     def read(self, device: Device) -> Reading:
@@ -14,12 +18,10 @@ class SimulationSensorAdapter(SensorPort):
             raise ValueError("Cannot read an unpersisted device.")
 
         if device.device_type == "moisture_sensor":
-            # Plausible moisture between 25% and 45%
-            value = round(random.uniform(0.25, 0.45), 3)
+            value = round(random.uniform(*MOISTURE_RANGE_VWC), 3)
             unit = "vwc"
         elif device.device_type == "light_sensor":
-            # Plausible illuminance between 300 and 800 lux
-            value = round(random.uniform(300.0, 800.0), 1)
+            value = round(random.uniform(*LIGHT_RANGE_LUX), 1)
             unit = "lux"
         else:
             raise ValueError(f"Unsupported sensor type: {device.device_type}")

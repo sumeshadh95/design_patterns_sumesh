@@ -9,7 +9,13 @@ from infrastructure.persistence.device_repository import DeviceRepository
 from infrastructure.persistence.reading_repository import ReadingRepository
 
 
-class ReadingService:
+class ReadingIngest:
+    """The only writer of sensor_readings.
+
+    A manual read, the simulation sampler and (Phase 12) MQTT or device HTTP
+    all store readings through this class.
+    """
+
     def __init__(
         self,
         device_repository: DeviceRepository,
@@ -28,10 +34,17 @@ class ReadingService:
             raise ValueError("Readings can only be taken from sensor devices.")
 
         adapter = select_sensor_adapter(device)
-        reading = adapter.read(device)
-        saved_reading = self._reading_repository.insert(reading)
+        return self._persist(adapter.read(device))
 
-        return self._to_dto(saved_reading)
+    def record(self, device_id: UUID, reading: Reading) -> ReadingDto:
+        """Store a reading another adapter already translated (e.g. MQTT)."""
+        if self._device_repository.get_device(device_id) is None:
+            raise LookupError("Sensor device not found.")
+
+        if reading.device_id != device_id:
+            raise ValueError("Reading belongs to a different device.")
+
+        return self._persist(reading)
 
     def list_readings(
         self,
@@ -49,6 +62,9 @@ class ReadingService:
         )
 
         return [self._to_dto(reading) for reading in readings]
+
+    def _persist(self, reading: Reading) -> ReadingDto:
+        return self._to_dto(self._reading_repository.insert(reading))
 
     @staticmethod
     def _to_dto(reading: Reading) -> ReadingDto:

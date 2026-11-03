@@ -18,6 +18,15 @@ class BuildLocationConfigRequestDto(BaseModel):
     zones: list[ZoneBuildRequestDto]
 
 
+class ZoneUpsertRequestDto(BaseModel):
+    """Body for adding or editing one zone on a saved location."""
+
+    name: str
+    moisture_threshold_low: float
+    moisture_threshold_high: float
+    schedule: dict[str, Any] = Field(default_factory=dict)
+
+
 class LocationDto(BaseModel):
     id: UUID
     name: str

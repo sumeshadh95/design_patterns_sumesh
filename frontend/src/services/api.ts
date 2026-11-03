@@ -1,6 +1,50 @@
 const API_BASE_URL =
   import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8000";
 
+async function errorMessage(response: Response, fallback: string): Promise<string> {
+  const body = (await response.json().catch(() => null)) as {
+    detail?: unknown;
+  } | null;
+
+  return typeof body?.detail === "string"
+    ? body.detail
+    : `${fallback}: ${response.status}`;
+}
+
+async function request<T>(
+  path: string,
+  fallback: string,
+  init?: RequestInit,
+): Promise<T> {
+  const response = await fetch(`${API_BASE_URL}${path}`, init);
+
+  if (!response.ok) {
+    throw new Error(await errorMessage(response, fallback));
+  }
+
+  return response.json() as Promise<T>;
+}
+
+async function requestNoContent(
+  path: string,
+  fallback: string,
+  init: RequestInit,
+): Promise<void> {
+  const response = await fetch(`${API_BASE_URL}${path}`, init);
+
+  if (!response.ok) {
+    throw new Error(await errorMessage(response, fallback));
+  }
+}
+
+function jsonBody(method: string, body: unknown): RequestInit {
+  return {
+    method,
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  };
+}
+
 export type HealthResponse = {
   status: string;
   db: "ok" | "fail";
@@ -11,6 +55,10 @@ export type SensorDto = {
   device_type: string;
   display_name: string | null;
   default_config: Record<string, unknown>;
+  zone_id: string | null;
+  location_id: string | null;
+  sampling_interval_seconds: number;
+  tracking_enabled: boolean;
 };
 
 export type SensorCreatePayload = {
@@ -34,6 +82,10 @@ export type DeviceDto = {
   device_family: DeviceFamily | string;
   display_name: string;
   default_config: Record<string, unknown>;
+  zone_id: string | null;
+  location_id: string | null;
+  sampling_interval_seconds: number;
+  tracking_enabled: boolean;
   state: ActuatorState | null;
   allowed_commands: string[];
 };
@@ -48,34 +100,19 @@ export async function fetchHealth(): Promise<HealthResponse> {
   return response.json() as Promise<HealthResponse>;
 }
 
-export async function listSensors(): Promise<SensorDto[]> {
-  const response = await fetch(`${API_BASE_URL}/api/sensors`);
-
-  if (!response.ok) {
-    throw new Error(`Failed to fetch sensors: ${response.status}`);
-  }
-
-  return response.json() as Promise<SensorDto[]>;
+export function listSensors(): Promise<SensorDto[]> {
+  return request("/api/sensors", "Failed to fetch sensors");
 }
 
-export async function createSensor(
-  payload: SensorCreatePayload,
-): Promise<SensorDto> {
-  const response = await fetch(`${API_BASE_URL}/api/sensors`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(payload),
-  });
-
-  if (!response.ok) {
-    const text = await response.text();
-    throw new Error(text || `Failed to create sensor: ${response.status}`);
-  }
-
-  return response.json() as Promise<SensorDto>;
+export function createSensor(payload: SensorCreatePayload): Promise<SensorDto> {
+  return request(
+    "/api/sensors",
+    "Failed to create sensor",
+    jsonBody("POST", payload),
+  );
 }
 
-export async function fetchDevices(
+export function fetchDevices(
   filters: {
     family?: DeviceFamily;
     role?: DeviceRole;
@@ -87,30 +124,54 @@ export async function fetchDevices(
   if (filters.role) params.set("role", filters.role);
 
   const suffix = params.toString() ? `?${params.toString()}` : "";
-  const response = await fetch(`${API_BASE_URL}/api/devices${suffix}`);
-
-  if (!response.ok) {
-    throw new Error(`Failed to fetch devices: ${response.status}`);
-  }
-
-  return response.json() as Promise<DeviceDto[]>;
+  return request(`/api/devices${suffix}`, "Failed to fetch devices");
 }
 
-export async function provisionDeviceFamily(
-  family: DeviceFamily,
-): Promise<DeviceDto[]> {
-  const response = await fetch(
-    `${API_BASE_URL}/api/devices/provision?family=${encodeURIComponent(family)}`,
+export function provisionDeviceFamily(family: DeviceFamily): Promise<DeviceDto[]> {
+  return request(
+    `/api/devices/provision?family=${encodeURIComponent(family)}`,
+    "Failed to provision family",
     { method: "POST" },
   );
-
-  if (!response.ok) {
-    const text = await response.text();
-    throw new Error(text || `Failed to provision family: ${response.status}`);
-  }
-
-  return response.json() as Promise<DeviceDto[]>;
 }
+
+export function assignDeviceZone(
+  deviceId: string,
+  zoneId: string | null,
+): Promise<DeviceDto> {
+  return request(
+    `/api/devices/${deviceId}/zone`,
+    "Failed to assign zone",
+    jsonBody("PATCH", { zone_id: zoneId }),
+  );
+}
+
+export function updateDeviceSampling(
+  deviceId: string,
+  samplingIntervalSeconds: number,
+  trackingEnabled: boolean,
+): Promise<DeviceDto> {
+  return request(
+    `/api/devices/${deviceId}/sampling`,
+    "Failed to update sampling",
+    jsonBody("PATCH", {
+      sampling_interval_seconds: samplingIntervalSeconds,
+      tracking_enabled: trackingEnabled,
+    }),
+  );
+}
+
+export function transitionDevice(
+  deviceId: string,
+  target: ActuatorState,
+): Promise<DeviceDto> {
+  return request(
+    `/api/devices/${deviceId}/transition`,
+    "Transition failed",
+    jsonBody("POST", { target }),
+  );
+}
+
 export type ZoneBuildPayload = {
   name: string;
   moisture_threshold_low: number;
@@ -142,73 +203,129 @@ export type LocationConfigDto = {
   zones: ZoneDto[];
 };
 
-export async function createLocationConfig(
+export function listLocations(): Promise<LocationDto[]> {
+  return request("/api/locations", "Failed to fetch locations");
+}
+
+export function createLocationConfig(
   payload: BuildLocationConfigPayload,
 ): Promise<LocationConfigDto> {
-  const response = await fetch(`${API_BASE_URL}/api/locations/config`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(payload),
-  });
-
-  if (!response.ok) {
-    const text = await response.text();
-    throw new Error(text || `Failed to create location config: ${response.status}`);
-  }
-
-  return response.json() as Promise<LocationConfigDto>;
-}
-
-export async function fetchLocationConfig(
-  locationId: string,
-): Promise<LocationConfigDto> {
-  const response = await fetch(
-    `${API_BASE_URL}/api/locations/${locationId}/config`,
+  return request(
+    "/api/locations/config",
+    "Failed to create location config",
+    jsonBody("POST", payload),
   );
-
-  if (!response.ok) {
-    const text = await response.text();
-    throw new Error(text || `Failed to fetch location config: ${response.status}`);
-  }
-
-  return response.json() as Promise<LocationConfigDto>;
 }
+
+export function fetchLocationConfig(locationId: string): Promise<LocationConfigDto> {
+  return request(
+    `/api/locations/${locationId}/config`,
+    "Failed to fetch location config",
+  );
+}
+
+export function deleteLocation(locationId: string): Promise<void> {
+  return requestNoContent(`/api/locations/${locationId}`, "Failed to delete location", {
+    method: "DELETE",
+  });
+}
+
+export function addZone(locationId: string, zone: ZoneBuildPayload): Promise<ZoneDto> {
+  return request(
+    `/api/locations/${locationId}/zones`,
+    "Failed to add zone",
+    jsonBody("POST", zone),
+  );
+}
+
+export function updateZone(
+  locationId: string,
+  zoneId: string,
+  zone: ZoneBuildPayload,
+): Promise<ZoneDto> {
+  return request(
+    `/api/locations/${locationId}/zones/${zoneId}`,
+    "Failed to update zone",
+    jsonBody("PATCH", zone),
+  );
+}
+
+export function deleteZone(locationId: string, zoneId: string): Promise<void> {
+  return requestNoContent(
+    `/api/locations/${locationId}/zones/${zoneId}`,
+    "Failed to delete zone",
+    { method: "DELETE" },
+  );
+}
+
+export function listZoneDevices(
+  locationId: string,
+  zoneId: string,
+): Promise<DeviceDto[]> {
+  return request(
+    `/api/locations/${locationId}/zones/${zoneId}/devices`,
+    "Failed to fetch zone devices",
+  );
+}
+
 export type ReadingDto = {
   device_id: string;
   value: number;
   unit: string;
-  source: "simulation" | "vendor" | string;
+  source: "simulation" | "mqtt" | "vendor" | string;
   recorded_at: string;
 };
 
-export async function readSensor(deviceId: string): Promise<ReadingDto> {
-  const response = await fetch(
-    `${API_BASE_URL}/api/sensors/${deviceId}/read`,
-    { method: "POST" },
-  );
-
-  if (!response.ok) {
-    const text = await response.text();
-    throw new Error(text || `Failed to read sensor: ${response.status}`);
-  }
-
-  return response.json() as Promise<ReadingDto>;
+export function readSensor(deviceId: string): Promise<ReadingDto> {
+  return request(`/api/sensors/${deviceId}/read`, "Failed to read sensor", {
+    method: "POST",
+  });
 }
 
-export async function fetchSensorReadings(
+export function fetchSensorReadings(
   deviceId: string,
   limit = 1,
 ): Promise<ReadingDto[]> {
-  const response = await fetch(
-    `${API_BASE_URL}/api/sensors/${deviceId}/readings?limit=${limit}`,
+  return request(
+    `/api/sensors/${deviceId}/readings?limit=${limit}`,
+    "Failed to fetch readings",
   );
+}
 
-  if (!response.ok) {
-    const text = await response.text();
-    throw new Error(text || `Failed to fetch readings: ${response.status}`);
-  }
+export type StrategyKey = "conservative" | "aggressive";
 
-  return response.json() as Promise<ReadingDto[]>;
+export type ZoneRecommendationDto = {
+  zone_id: string;
+  zone_name: string;
+  action: string;
+  reason: string;
+};
+
+export type RecommendationDto = {
+  location_id: string;
+  strategy_key: string;
+  action: string;
+  reason: string;
+  zones: ZoneRecommendationDto[];
+};
+
+export function saveStrategy(
+  locationId: string,
+  strategyKey: StrategyKey,
+): Promise<{ location_id: string; strategy_key: string }> {
+  return request(
+    `/api/locations/${locationId}/automation`,
+    "Save failed",
+    jsonBody("PUT", { strategy_key: strategyKey }),
+  );
+}
+
+export function evaluateAutomation(locationId: string): Promise<RecommendationDto> {
+  return request(
+    `/api/locations/${locationId}/automation/evaluate`,
+    "Evaluate failed",
+    { method: "POST" },
+  );
 }
 
 export type LocationSummaryDto = {
@@ -221,11 +338,29 @@ export type DeviceCountsDto = {
   actuator: number;
 };
 
+export type OverviewDeviceDto = {
+  id: string;
+  device_type: string;
+  role: DeviceRole;
+  display_name: string;
+};
+
 export type ReadingSummaryDto = {
   device_id: string;
   value: number;
   unit: string;
   recorded_at: string;
+  tracking_enabled: boolean;
+  sampling_interval_seconds: number;
+};
+
+export type OverviewZoneDto = {
+  id: string;
+  name: string;
+  moisture_threshold_low: number;
+  moisture_threshold_high: number;
+  devices: OverviewDeviceDto[];
+  latest_readings: ReadingSummaryDto[];
 };
 
 export type RecommendationSummaryDto = {
@@ -236,50 +371,14 @@ export type RecommendationSummaryDto = {
 export type LocationOverviewDto = {
   location: LocationSummaryDto;
   device_counts: DeviceCountsDto;
-  latest_readings: ReadingSummaryDto[];
+  zones: OverviewZoneDto[];
   strategy_key: string | null;
   last_recommendation: RecommendationSummaryDto | null;
 };
 
-export async function fetchOverview(
-  locationId: string,
-): Promise<LocationOverviewDto> {
-  const response = await fetch(
-    `${API_BASE_URL}/api/locations/${locationId}/overview`,
+export function fetchOverview(locationId: string): Promise<LocationOverviewDto> {
+  return request(
+    `/api/locations/${locationId}/overview`,
+    "Failed to fetch overview",
   );
-
-  if (!response.ok) {
-    const text = await response.text();
-    throw new Error(text || `Failed to fetch overview: ${response.status}`);
-  }
-
-  return response.json() as Promise<LocationOverviewDto>;
-}
-
-export async function transitionDevice(
-  deviceId: string,
-  target: ActuatorState,
-): Promise<DeviceDto> {
-  const response = await fetch(
-    `${API_BASE_URL}/api/devices/${deviceId}/transition`,
-    {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ target }),
-    },
-  );
-
-  if (!response.ok) {
-    const body = (await response.json().catch(() => null)) as {
-      detail?: unknown;
-    } | null;
-
-    throw new Error(
-      typeof body?.detail === "string"
-        ? body.detail
-        : `Transition failed: ${response.status}`,
-    );
-  }
-
-  return response.json() as Promise<DeviceDto>;
 }

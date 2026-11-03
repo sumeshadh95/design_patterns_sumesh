@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from dataclasses import dataclass
 from datetime import datetime, timezone
 from uuid import UUID
 
@@ -8,10 +9,19 @@ from sqlalchemy.orm import Session
 
 from infrastructure.persistence.models import (
     AutomationRuleRow,
+    DeviceRow,
     LocationRow,
     ReadingRow,
     ZoneRow,
 )
+
+
+@dataclass(frozen=True)
+class ZoneThresholds:
+    zone_id: UUID
+    name: str
+    low: float
+    high: float
 
 
 class AutomationRuleRepository:
@@ -60,34 +70,39 @@ class AutomationContextRepository:
     def location_exists(self, location_id: UUID) -> bool:
         return self._session.get(LocationRow, location_id) is not None
 
-    def zone_thresholds(
-        self,
-        location_id: UUID,
-    ) -> tuple[float, float] | None:
-        zone = (
+    def list_zone_thresholds(self, location_id: UUID) -> list[ZoneThresholds]:
+        zones = (
             self._session.execute(
                 select(ZoneRow)
                 .where(ZoneRow.location_id == location_id)
                 .order_by(ZoneRow.name)
-                .limit(1)
             )
             .scalars()
-            .first()
+            .all()
         )
 
-        if zone is None:
-            return None
+        return [
+            ZoneThresholds(
+                zone_id=zone.id,
+                name=zone.name,
+                low=float(zone.moisture_threshold_low),
+                high=float(zone.moisture_threshold_high),
+            )
+            for zone in zones
+        ]
 
-        return (
-            float(zone.moisture_threshold_low),
-            float(zone.moisture_threshold_high),
-        )
-
-    def latest_value(self, unit: str) -> float | None:
+    def latest_value_in_zone(self, zone_id: UUID, unit: str) -> float | None:
+        # Only sensors assigned to this zone count; an unassigned device's
+        # reading is never borrowed.
         row = (
             self._session.execute(
                 select(ReadingRow)
-                .where(ReadingRow.unit == unit)
+                .join(DeviceRow, DeviceRow.id == ReadingRow.device_id)
+                .where(
+                    DeviceRow.zone_id == zone_id,
+                    DeviceRow.role == "sensor",
+                    ReadingRow.unit == unit,
+                )
                 .order_by(ReadingRow.recorded_at.desc())
                 .limit(1)
             )

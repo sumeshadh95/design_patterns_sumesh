@@ -4,7 +4,11 @@ from uuid import UUID
 
 from sqlalchemy.orm import Session
 
-from application.automation.dto import RecommendationDto, StrategyDto
+from application.automation.dto import (
+    RecommendationDto,
+    StrategyDto,
+    ZoneRecommendationDto,
+)
 from domain.automation.context import LocationAutomationContext
 from domain.automation.strategy import get_strategy
 from infrastructure.persistence.automation_repository import (
@@ -51,25 +55,41 @@ class AutomationService:
         )
         strategy = get_strategy(strategy_key)
 
-        thresholds = self._context.zone_thresholds(location_id)
-        if thresholds is None:
-            raise LocationNotFoundError("No zones for location.")
+        # One context per zone: that zone's thresholds and the latest reading
+        # from sensors assigned to that zone only.
+        zone_results: list[ZoneRecommendationDto] = []
+        for zone in self._context.list_zone_thresholds(location_id):
+            context = LocationAutomationContext(
+                location_id=location_id,
+                zone_id=zone.zone_id,
+                moisture=self._context.latest_value_in_zone(zone.zone_id, "vwc"),
+                light=self._context.latest_value_in_zone(zone.zone_id, "lux"),
+                low=zone.low,
+                high=zone.high,
+            )
+            recommendation = strategy.decide(context)
+            zone_results.append(
+                ZoneRecommendationDto(
+                    zone_id=zone.zone_id,
+                    zone_name=zone.name,
+                    action=recommendation.action,
+                    reason=recommendation.reason,
+                )
+            )
 
-        low, high = thresholds
+        irrigate = [zone for zone in zone_results if zone.action == "irrigate"]
 
-        context = LocationAutomationContext(
-            location_id=location_id,
-            moisture=self._context.latest_value("vwc"),
-            light=self._context.latest_value("lux"),
-            low=low,
-            high=high,
-        )
-
-        recommendation = strategy.decide(context)
+        if irrigate:
+            action = "irrigate"
+            reason = "; ".join(f"{zone.zone_name}: {zone.reason}" for zone in irrigate)
+        else:
+            action = "wait"
+            reason = "No zone needs water."
 
         return RecommendationDto(
             location_id=location_id,
             strategy_key=strategy_key,
-            action=recommendation.action,
-            reason=recommendation.reason,
+            action=action,
+            reason=reason,
+            zones=zone_results,
         )
