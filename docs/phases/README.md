@@ -10,8 +10,8 @@ This directory contains notes and answers for the Smart Greenhouse course phases
 4. **Phase 4 — Builder**
 5. **Phase 5 — Adapter**
 6. **Phase 6 — Strategy:** pluggable irrigation policies saved per location.
-7. **Phase 7 — Facade**
-8. **Phase 8 — State**
+7. **Phase 7 — Facade:** one overview endpoint and dashboard section per location.
+8. **Phase 8 — State:** persisted actuator lifecycle with guarded transitions.
 9. **Phase 9 — Decorator**
 10. **Phase 10 — Command**
 11. **Phase 11 — Observer**
@@ -32,3 +32,5 @@ This directory contains notes and answers for the Smart Greenhouse course phases
 - [Strategy pattern note](../patterns/strategy.md)
 - [Phase 7 — Facade answers](phase-07/questions.md)
 - [Facade pattern note](../patterns/facade.md)
+- [Phase 8 — State answers](phase-08/questions.md)
+- [State pattern note](../patterns/state.md)

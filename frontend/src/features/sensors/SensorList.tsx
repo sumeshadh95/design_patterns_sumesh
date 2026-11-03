@@ -8,6 +8,29 @@ import {
   type SensorDto,
 } from "../../services/api";
 
+async function fetchSensorsWithLatest(): Promise<{
+  sensors: SensorDto[];
+  readings: Record<string, ReadingDto>;
+}> {
+  const sensors = await listSensors();
+
+  const latestReadings = await Promise.all(
+    sensors.map(async (sensor) => {
+      const history = await fetchSensorReadings(sensor.id, 1);
+      return [sensor.id, history[0]] as const;
+    }),
+  );
+
+  return {
+    sensors,
+    readings: Object.fromEntries(
+      latestReadings.filter(
+        (entry): entry is readonly [string, ReadingDto] => entry[1] !== undefined,
+      ),
+    ),
+  };
+}
+
 export default function SensorList() {
   const [sensors, setSensors] = useState<SensorDto[]>([]);
   const [readings, setReadings] = useState<Record<string, ReadingDto>>({});
@@ -20,23 +43,9 @@ export default function SensorList() {
       setLoading(true);
       setError(null);
 
-      const sensorData = await listSensors();
-      setSensors(sensorData);
-
-      const latestReadings = await Promise.all(
-        sensorData.map(async (sensor) => {
-          const history = await fetchSensorReadings(sensor.id, 1);
-          return [sensor.id, history[0]] as const;
-        }),
-      );
-
-      setReadings(
-        Object.fromEntries(
-          latestReadings.filter(
-            (entry): entry is readonly [string, ReadingDto] => entry[1] !== undefined,
-          ),
-        ),
-      );
+      const data = await fetchSensorsWithLatest();
+      setSensors(data.sensors);
+      setReadings(data.readings);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unknown error");
     } finally {
@@ -45,7 +54,32 @@ export default function SensorList() {
   };
 
   useEffect(() => {
-    void loadSensors();
+    let mounted = true;
+
+    async function loadInitial() {
+      try {
+        const data = await fetchSensorsWithLatest();
+
+        if (mounted) {
+          setSensors(data.sensors);
+          setReadings(data.readings);
+        }
+      } catch (err) {
+        if (mounted) {
+          setError(err instanceof Error ? err.message : "Unknown error");
+        }
+      } finally {
+        if (mounted) {
+          setLoading(false);
+        }
+      }
+    }
+
+    void loadInitial();
+
+    return () => {
+      mounted = false;
+    };
   }, []);
 
   const handleCreate = async (type: "moisture" | "light") => {

@@ -30,8 +30,39 @@ export default function DeviceList() {
   };
 
   useEffect(() => {
-    void loadDevices(family);
+    let mounted = true;
+
+    async function loadFamily() {
+      try {
+        const data = await fetchDevices({ family });
+
+        if (mounted) {
+          setDevices(data);
+          setError(null);
+        }
+      } catch (err) {
+        if (mounted) {
+          setError(err instanceof Error ? err.message : "Failed to load devices");
+        }
+      } finally {
+        if (mounted) {
+          setLoading(false);
+        }
+      }
+    }
+
+    void loadFamily();
+
+    return () => {
+      mounted = false;
+    };
   }, [family]);
+
+  const handleFamilyChange = (nextFamily: DeviceFamily) => {
+    setLoading(true);
+    setFamily(nextFamily);
+  };
+
 
   const handleProvision = async () => {
     try {
@@ -63,7 +94,7 @@ export default function DeviceList() {
         </div>
 
         <div className="flex items-center gap-2">
-          <DeviceFamilySwitcher selectedFamily={family} onChange={setFamily} />
+          <DeviceFamilySwitcher selectedFamily={family} onChange={handleFamilyChange} />
           <button
             type="button"
             onClick={() => void handleProvision()}
