@@ -13,6 +13,7 @@ class Settings(BaseSettings):
     cors_origins: str = "http://localhost:5173"
     sampler_enabled: bool = True
     sampler_tick_seconds: float = 5.0
+    actuator_max_run_seconds: int = 1800
 
     model_config = SettingsConfigDict(
         env_file=PROJECT_ROOT / ".env",

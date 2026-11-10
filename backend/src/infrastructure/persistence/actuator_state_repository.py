@@ -31,6 +31,17 @@ class ActuatorStateRepository:
 
         return {device_id: state for device_id, state in rows}
 
+    def get_running_since(self, device_id: UUID) -> datetime | None:
+        row = self._session.get(ActuatorStateRow, device_id)
+
+        if row is None or row.state != "running":
+            return None
+
+        # updated_at changes on every transition, so for a running actuator
+        # it is the moment it started running.
+        return row.updated_at
+
+
     def save_state(self, device_id: UUID, state: str) -> None:
         row = self._session.get(ActuatorStateRow, device_id)
 

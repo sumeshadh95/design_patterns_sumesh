@@ -15,6 +15,8 @@ from interfaces.api.devices import router as devices_router
 from interfaces.api.locations import router as locations_router
 from interfaces.api.automation import router as automation_router
 from interfaces.api.overview import router as overview_router
+from interfaces.api.actuators import router as actuators_router
+
 
 
 @asynccontextmanager
@@ -62,6 +64,8 @@ app.include_router(devices_router)
 app.include_router(locations_router)
 app.include_router(automation_router)
 app.include_router(overview_router)
+app.include_router(actuators_router)
+
 
 
 @app.get("/", include_in_schema=False)

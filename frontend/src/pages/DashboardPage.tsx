@@ -1,6 +1,7 @@
 import { useCallback, useState } from "react";
 import LocationConfigWizard from "../components/config/LocationConfigWizard";
 import DeviceList from "../components/devices/DeviceList";
+import ExecutionLog from "../features/actuators/ExecutionLog";
 import StrategyPanel from "../features/automation/StrategyPanel";
 import OverviewPanel from "../features/overview/OverviewPanel";
 import SensorList from "../features/sensors/SensorList";
@@ -18,7 +19,7 @@ export default function DashboardPage() {
           Smart Greenhouse Dashboard
         </h2>
         <p className="mt-2 text-slate-600">
-          Location overview, configuration, devices, sensors and automation.
+          Location overview, configuration, devices, actuator executions, sensors and automation.
         </p>
       </div>
 
@@ -32,6 +33,10 @@ export default function DashboardPage() {
 
       <div id="devices">
         <DeviceList version={version} onChanged={handleChanged} />
+      </div>
+
+      <div id="executions">
+        <ExecutionLog />
       </div>
 
       <div id="sensors">

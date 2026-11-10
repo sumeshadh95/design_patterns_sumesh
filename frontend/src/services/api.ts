@@ -382,3 +382,21 @@ export function fetchOverview(locationId: string): Promise<LocationOverviewDto> 
     "Failed to fetch overview",
   );
 }
+
+
+export type ExecutionDto = {
+  id: string;
+  device_id: string;
+  success: boolean;
+  policy_applied: string[];
+  message: string | null;
+  created_at: string;
+};
+
+export function fetchExecutions(limit = 20): Promise<ExecutionDto[]> {
+  return request(
+    `/api/actuators/executions?limit=${limit}`,
+    "Failed to fetch executions",
+  );
+}
+
