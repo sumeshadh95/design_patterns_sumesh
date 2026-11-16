@@ -1,13 +1,10 @@
 from __future__ import annotations
 
 from datetime import timedelta
-from typing import Any
-from uuid import UUID
 
 from sqlalchemy.orm import Session
 
 from application.actuators.dto import ExecutionDto
-from application.devices.actuator_state_service import ActuatorNotFoundError
 from domain.actuators.ports import ActuatorPort
 from infrastructure.adapters.actuators.logging_decorator import (
     LoggingActuatorDecorator,
@@ -19,7 +16,6 @@ from infrastructure.adapters.actuators.simulation import SimulationActuatorAdapt
 from infrastructure.persistence.actuator_state_repository import (
     ActuatorStateRepository,
 )
-from infrastructure.persistence.device_repository import DeviceRepository
 from infrastructure.persistence.execution_log_repository import (
     ExecutionLogRepository,
 )
@@ -53,25 +49,8 @@ def execution_to_dto(row: ActuatorExecutionLogRow) -> ExecutionDto:
 
 
 class ActuatorExecutionService:
-    def __init__(
-        self,
-        device_repository: DeviceRepository,
-        log_repository: ExecutionLogRepository,
-        port: ActuatorPort,
-    ):
-        self._devices = device_repository
+    def __init__(self, log_repository: ExecutionLogRepository):
         self._log = log_repository
-        self._port = port
-
-    def apply(self, device_id: UUID, command: str, payload: dict[str, Any]) -> None:
-        device = self._devices.get_device(device_id)
-
-        if device is None or device.role != "actuator":
-            raise ActuatorNotFoundError("Actuator not found.")
-
-        # The caller only sees ActuatorPort; it does not know how many
-        # decorators are stacked behind it.
-        self._port.apply(device_id, command, payload)
 
     def list_executions(self, limit: int = 20) -> list[ExecutionDto]:
         return [execution_to_dto(row) for row in self._log.list_recent(limit)]

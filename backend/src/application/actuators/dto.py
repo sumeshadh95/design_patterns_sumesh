@@ -1,15 +1,9 @@
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Any
 from uuid import UUID
 
-from pydantic import BaseModel, Field
-
-
-class ApplyCommandRequest(BaseModel):
-    command: str = Field(min_length=1)
-    payload: dict[str, Any] = Field(default_factory=dict)
+from pydantic import BaseModel
 
 
 class ExecutionDto(BaseModel):

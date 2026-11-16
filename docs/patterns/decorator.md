@@ -48,7 +48,7 @@ port = MaxRunTimeActuatorDecorator(port, ActuatorStateRepository(session), max_r
 return LoggingActuatorDecorator(port, ExecutionLogRepository(session))
 ```
 
-The router asks for the port and calls `apply`. It has no policy `if`.
+Since Phase 10, `CommandService` gets the port and a command object calls `apply`. No router has a policy `if`.
 
 ## Order
 
@@ -95,7 +95,6 @@ stdout:
 | Route | Purpose |
 | --- | --- |
 | `GET /api/actuators/executions?limit=20` | Newest execution rows first |
-| `POST /api/actuators/{device_id}/apply` | Demo route until Phase 10 (Command) |
 
 ```json
 {
@@ -108,11 +107,11 @@ stdout:
 }
 ```
 
-| Apply case | Status |
+| Command result (Phase 10) | Execution row |
 | --- | --- |
-| Applied | 204, row with `success=true` |
-| Blocked by max run-time | 409, row with `success=false` |
-| Missing device or a sensor | 404, no row |
+| Applied | `success=true`, `["logging"]` |
+| Blocked by max run-time (command `failed`) | `success=false`, `["maxRunTime", "logging"]` |
+| Rejected by State (command `rejected`) | No row: the port is never reached |
 
 ## Dashboard
 

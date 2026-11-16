@@ -1,4 +1,5 @@
 import { useCallback, useState } from "react";
+import CommandPanel from "../components/commands/CommandPanel";
 import LocationConfigWizard from "../components/config/LocationConfigWizard";
 import DeviceList from "../components/devices/DeviceList";
 import ExecutionLog from "../features/actuators/ExecutionLog";
@@ -7,7 +8,7 @@ import OverviewPanel from "../features/overview/OverviewPanel";
 import SensorList from "../features/sensors/SensorList";
 
 export default function DashboardPage() {
-  // Bumped after any location, zone, assignment or strategy change, so every
+  // Bumped after any location, zone, assignment, strategy or command change, so every
   // section that depends on those reloads its data.
   const [version, setVersion] = useState(0);
   const handleChanged = useCallback(() => setVersion((current) => current + 1), []);
@@ -19,7 +20,7 @@ export default function DashboardPage() {
           Smart Greenhouse Dashboard
         </h2>
         <p className="mt-2 text-slate-600">
-          Location overview, configuration, devices, actuator executions, sensors and automation.
+          Location overview, configuration, devices, actuator controls, actuator executions, sensors and automation.
         </p>
       </div>
 
@@ -33,6 +34,10 @@ export default function DashboardPage() {
 
       <div id="devices">
         <DeviceList version={version} onChanged={handleChanged} />
+      </div>
+
+      <div id="controls">
+        <CommandPanel version={version} onChanged={handleChanged} />
       </div>
 
       <div id="executions">

@@ -400,3 +400,43 @@ export function fetchExecutions(limit = 20): Promise<ExecutionDto[]> {
   );
 }
 
+
+export type CommandType = "start_pump" | "stop_pump" | "set_light_level";
+export type CommandStatus = "success" | "failed" | "rejected";
+
+export type CommandLogDto = {
+  id: string;
+  command_type: string;
+  device_id: string;
+  payload: Record<string, unknown>;
+  status: CommandStatus;
+  error_message: string | null;
+  created_at: string;
+};
+
+export async function sendCommand(
+  commandType: CommandType,
+  deviceId: string,
+  payload: Record<string, unknown> = {},
+): Promise<CommandLogDto> {
+  const response = await fetch(
+    `${API_BASE_URL}/api/commands`,
+    jsonBody("POST", {
+      command_type: commandType,
+      device_id: deviceId,
+      payload,
+    }),
+  );
+
+  // 409 (rejected) still returns the log row, so it is a result, not an error.
+  if (!response.ok && response.status !== 409) {
+    throw new Error(await errorMessage(response, "Command failed"));
+  }
+
+  return response.json() as Promise<CommandLogDto>;
+}
+
+export function fetchCommands(limit = 50): Promise<CommandLogDto[]> {
+  return request(`/api/commands?limit=${limit}`, "Failed to fetch commands");
+}
+

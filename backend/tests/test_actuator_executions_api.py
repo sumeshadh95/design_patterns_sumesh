@@ -18,10 +18,11 @@ def pump_id() -> str:
     return next(d["id"] for d in devices if d["device_type"] == "water_pump")
 
 
-def apply(device_id: str, command: str):
+def send(device_id: str, command_type: str):
+    # Since Phase 10 the decorated port is reached through a command.
     return client.post(
-        f"/api/actuators/{device_id}/apply",
-        json={"command": command, "payload": {}},
+        "/api/commands",
+        json={"command_type": command_type, "device_id": device_id, "payload": {}},
     )
 
 
@@ -34,9 +35,9 @@ def executions_for(device_id: str) -> list[dict]:
 
 
 def test_apply_writes_successful_execution_row(pump_id: str) -> None:
-    response = apply(pump_id, "start_pump")
+    response = send(pump_id, "start_pump")
 
-    assert response.status_code == 204
+    assert response.status_code == 200
 
     rows = executions_for(pump_id)
 
@@ -44,7 +45,6 @@ def test_apply_writes_successful_execution_row(pump_id: str) -> None:
     assert rows[0]["success"] is True
     assert rows[0]["policy_applied"] == ["logging"]
     assert rows[0]["message"] is None
-
 
 
 def test_blocked_attempt_is_logged_as_unsuccessful(pump_id: str) -> None:
@@ -59,10 +59,11 @@ def test_blocked_attempt_is_logged_as_unsuccessful(pump_id: str) -> None:
         row.updated_at = datetime.now(timezone.utc) - timedelta(hours=2)
         session.commit()
 
-    response = apply(pump_id, "stop_pump")
+    response = send(pump_id, "stop_pump")
 
-    assert response.status_code == 409
-    assert response.json()["detail"] == "Max run time exceeded"
+    assert response.status_code == 200
+    assert response.json()["status"] == "failed"
+    assert response.json()["error_message"] == "Max run time exceeded"
 
     newest = executions_for(pump_id)[0]
 
@@ -72,8 +73,8 @@ def test_blocked_attempt_is_logged_as_unsuccessful(pump_id: str) -> None:
 
 
 def test_executions_are_newest_first_and_limited(pump_id: str) -> None:
-    apply(pump_id, "start_pump")
-    apply(pump_id, "start_pump")
+    send(pump_id, "start_pump")
+    send(pump_id, "stop_pump")
 
     times = [row["created_at"] for row in executions_for(pump_id)]
 
@@ -97,6 +98,6 @@ def test_executions_are_newest_first_and_limited(pump_id: str) -> None:
 def test_apply_to_missing_or_sensor_device_returns_404() -> None:
     sensor_id = client.post("/api/sensors", json={"type": "moisture"}).json()["id"]
 
-    assert apply(str(uuid4()), "start_pump").status_code == 404
-    assert apply(sensor_id, "start_pump").status_code == 404
+    assert send(str(uuid4()), "start_pump").status_code == 404
+    assert send(sensor_id, "start_pump").status_code == 404
     assert executions_for(sensor_id) == []
