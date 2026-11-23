@@ -1,6 +1,6 @@
 # Smart Greenhouse
 
-A three-tier Smart Greenhouse application for the XAMK Design Patterns course. It has a FastAPI backend, a PostgreSQL database with Alembic migrations, and a React + TypeScript dashboard, and applies one design pattern per phase (Factory Method, Abstract Factory, Builder, Adapter, Strategy, Facade, State, Decorator and Command so far).
+A three-tier Smart Greenhouse application for the XAMK Design Patterns course. It has a FastAPI backend, a PostgreSQL database with Alembic migrations, and a React + TypeScript dashboard, and applies one design pattern per phase (Factory Method, Abstract Factory, Builder, Adapter, Strategy, Facade, State, Decorator, Command and Observer so far).
 
 ## Stack
 
@@ -61,7 +61,7 @@ alembic upgrade head
 alembic current
 ```
 
-The expected revision is `ce8d2fb06e3c` (head). The migration chain is listed in [docs/phases/README.md](docs/phases/README.md).
+The expected revision is `2594ae658b36` (head). The migration chain is listed in [docs/phases/README.md](docs/phases/README.md).
 
 ### 5. Install the frontend
 
@@ -125,6 +125,7 @@ Swagger UI is deliberately disabled at `/docs`; use Scalar at `/scalar` instead.
 | Devices | 3, 4, 8 | Provision a family, place a device in a zone, see and change actuator state |
 | Actuator controls | 10 | Send start_pump, stop_pump and set_light_level; buttons follow allowed_commands; see the command history |
 | Execution log | 9 | See every actuator attempt with its result, policies and message |
+| Event feed | 11 | Active alerts (low moisture, failed commands, actuator errors); filter by location and zone; refreshes every 5 seconds |
 | Sensors | 2, 5 | Read now, change the sampling interval and tracking; cards refresh every 5 seconds |
 | Automation | 6 | Save a strategy per location and evaluate every zone from its own sensors |
 

@@ -15,7 +15,7 @@ This directory contains notes and answers for the Smart Greenhouse course phases
 9. **Phase 9 — Decorator:** logging and max run-time decorators around the actuator port, with a persisted execution log.
 
 10. **Phase 10 — Command:** actuator commands with an invoker, a state guard, the decorated port and a `command_log` history.
-11. **Phase 11 — Observer**
+11. **Phase 11 — Observer:** in-process event bus, a moisture-threshold subscriber and an alert-persistence subscriber, a persisted `alerts` table and a polling event feed.
 12. **Phase 12 — Production API, WebSocket, and schema hardening**
 
 ## Completed phase documentation
@@ -39,6 +39,8 @@ This directory contains notes and answers for the Smart Greenhouse course phases
 - [Decorator pattern note](../patterns/decorator.md)
 - [Phase 10 — Command answers](phase-10/questions.md)
 - [Command pattern note](../patterns/command.md)
+- [Phase 11 — Observer answers](phase-11/questions.md)
+- [Observer pattern note](../patterns/observer.md)
 
 
 ## Migration chain
@@ -56,6 +58,7 @@ This directory contains notes and answers for the Smart Greenhouse course phases
 | `d8b2e6f4a113` | 5 (update) | `devices.sampling_interval_seconds`, `devices.tracking_enabled`, protocol values |
 | `aed8dbcb6b7c` | 9 | `actuator_execution_log` |
 | `ce8d2fb06e3c` | 10 | `command_log` |
+| `2594ae658b36` | 11 | `alerts` |
 
 
 `c3a1d5e7f902` and `d8b2e6f4a113` add the updated Phase 4 and Phase 5 requirements. They come after `b676258b7285` because applied revisions are never edited.

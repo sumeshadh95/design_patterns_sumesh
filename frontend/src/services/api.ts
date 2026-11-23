@@ -440,3 +440,33 @@ export function fetchCommands(limit = 50): Promise<CommandLogDto[]> {
   return request(`/api/commands?limit=${limit}`, "Failed to fetch commands");
 }
 
+
+export type AlertSeverity = "info" | "warning" | "critical";
+
+export type AlertDto = {
+  id: string;
+  location_id: string | null;
+  zone_id: string | null;
+  device_id: string | null;
+  severity: AlertSeverity;
+  message: string;
+  event_type: string;
+  status: "active" | "resolved";
+  created_at: string;
+};
+
+export function fetchAlerts(
+  filters: {
+    locationId?: string;
+    zoneId?: string;
+    limit?: number;
+  } = {},
+): Promise<AlertDto[]> {
+  const params = new URLSearchParams({ limit: String(filters.limit ?? 50) });
+
+  if (filters.locationId) params.set("location_id", filters.locationId);
+  if (filters.zoneId) params.set("zone_id", filters.zoneId);
+
+  return request(`/api/alerts?${params.toString()}`, "Failed to fetch alerts");
+}
+

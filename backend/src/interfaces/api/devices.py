@@ -17,6 +17,7 @@ from application.devices.dto import (
 )
 from application.devices.family_service import DeviceFamilyService
 from application.devices.sampling_service import SamplingService
+from application.event_bus import event_bus
 from application.locations.zone_assignment_service import ZoneAssignmentService
 from domain.actuators.state import IllegalTransitionError, UnknownStateError
 from domain.devices.sampling import SamplingConfigError
@@ -158,6 +159,7 @@ def transition_device(
     service = ActuatorStateService(
         DeviceRepository(db),
         ActuatorStateRepository(db),
+        event_bus,
     )
 
     try:

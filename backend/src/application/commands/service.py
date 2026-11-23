@@ -7,6 +7,8 @@ from domain.actuators.ports import ActuatorPort, PolicyViolationError
 from domain.actuators.state import DEFAULT_STATE
 from domain.commands.base import Command
 from domain.commands.invoker import CommandInvoker, command_for
+from domain.events.bus import EventBus
+from domain.events.events import ActuatorStateChanged, CommandFailed
 from infrastructure.persistence.actuator_state_repository import (
     ActuatorStateRepository,
 )
@@ -36,12 +38,14 @@ class CommandService:
         state_repository: ActuatorStateRepository,
         log_repository: CommandLogRepository,
         port: ActuatorPort,
+        event_bus: EventBus,
         invoker: CommandInvoker | None = None,
     ):
         self._devices = device_repository
         self._states = state_repository
         self._log = log_repository
         self._port = port
+        self._bus = event_bus
         self._invoker = invoker or CommandInvoker()
 
     def submit(self, request: CommandRequest) -> CommandLogDto:
@@ -77,7 +81,17 @@ class CommandService:
         except PolicyViolationError as exc:
             # State stays as it was; the logging decorator already wrote
             # the actuator_execution_log row.
-            return self._record(command, "failed", str(exc))
+            row = self._record(command, "failed", str(exc))
+            self._bus.publish(
+                CommandFailed(
+                    device_id=device.id,
+                    location_id=device.location_id,
+                    zone_id=device.zone_id,
+                    command_type=command.command_type,
+                    message=str(exc),
+                )
+            )
+            return row
 
         # 3. State: only after a completed apply, and only on a real change.
         if (
@@ -86,6 +100,14 @@ class CommandService:
         ):
             context.transition(command.target_state)
             self._states.save_state(request.device_id, context.state)
+            self._bus.publish(
+                ActuatorStateChanged(
+                    device_id=device.id,
+                    location_id=device.location_id,
+                    zone_id=device.zone_id,
+                    state=context.state,
+                )
+            )
 
         # 4. Log
         return self._record(command, "success", None)

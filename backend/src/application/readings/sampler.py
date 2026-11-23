@@ -66,10 +66,12 @@ class SimulationSampler:
 
 def run_sampler_tick() -> int:
     """One sampler pass with its own database session."""
+    from application.event_bus import event_bus
     from application.readings.service import ReadingIngest
     from infrastructure.db import SessionLocal
     from infrastructure.persistence.device_repository import DeviceRepository
     from infrastructure.persistence.reading_repository import ReadingRepository
+    
 
     with SessionLocal() as session:
         devices = DeviceRepository(session)
@@ -77,7 +79,8 @@ def run_sampler_tick() -> int:
         sampler = SimulationSampler(
             devices,
             readings,
-            ReadingIngest(devices, readings),
+            ReadingIngest(devices, readings, event_bus),
+
         )
         return sampler.run_once(datetime.now(timezone.utc))
 

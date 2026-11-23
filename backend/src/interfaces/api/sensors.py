@@ -14,6 +14,7 @@ from domain.devices.entity import Device
 from infrastructure.db import get_db
 from infrastructure.persistence.device_repository import DeviceRepository
 from infrastructure.persistence.reading_repository import ReadingRepository
+from application.event_bus import event_bus
 
 
 class SensorCreateRequest(BaseModel):
@@ -80,6 +81,8 @@ def take_sensor_reading(
     ingest = ReadingIngest(
         device_repository=DeviceRepository(db),
         reading_repository=ReadingRepository(db),
+        event_bus=event_bus,
+
     )
 
     try:
@@ -105,6 +108,8 @@ def list_sensor_readings(
     ingest = ReadingIngest(
         device_repository=DeviceRepository(db),
         reading_repository=ReadingRepository(db),
+        event_bus=event_bus,
+
     )
 
     try:

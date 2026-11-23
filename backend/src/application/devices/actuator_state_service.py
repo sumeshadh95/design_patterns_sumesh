@@ -7,6 +7,8 @@ from application.devices.mappers import device_to_dto
 from domain.actuators.context import ActuatorContext
 from domain.actuators.state import DEFAULT_STATE
 from domain.devices.entity import Device
+from domain.events.bus import EventBus
+from domain.events.events import ActuatorStateChanged
 from infrastructure.persistence.actuator_state_repository import (
     ActuatorStateRepository,
 )
@@ -22,9 +24,12 @@ class ActuatorStateService:
         self,
         device_repository: DeviceRepository,
         state_repository: ActuatorStateRepository,
+        event_bus: EventBus | None = None,
     ):
         self._devices = device_repository
         self._states = state_repository
+        # describe() needs no bus; the transition route passes one.
+        self._bus = event_bus
 
     def describe(self, devices: list[Device]) -> list[DeviceDto]:
         actuator_ids = [
@@ -52,6 +57,16 @@ class ActuatorStateService:
         # here, so nothing is saved.
         context.transition(target)
         self._states.save_state(device_id, context.state)
+
+        if self._bus is not None:
+            self._bus.publish(
+                ActuatorStateChanged(
+                    device_id=device.id,
+                    location_id=device.location_id,
+                    zone_id=device.zone_id,
+                    state=context.state,
+                )
+            )
 
         return device_to_dto(
             device,

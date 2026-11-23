@@ -1,4 +1,5 @@
 import { useCallback, useState } from "react";
+import EventFeed from "../components/alerts/EventFeed";
 import CommandPanel from "../components/commands/CommandPanel";
 import LocationConfigWizard from "../components/config/LocationConfigWizard";
 import DeviceList from "../components/devices/DeviceList";
@@ -20,7 +21,7 @@ export default function DashboardPage() {
           Smart Greenhouse Dashboard
         </h2>
         <p className="mt-2 text-slate-600">
-          Location overview, configuration, devices, actuator controls, actuator executions, sensors and automation.
+          Location overview, configuration, devices, actuator controls, actuator executions, event feed, sensors and automation.
         </p>
       </div>
 
@@ -42,6 +43,10 @@ export default function DashboardPage() {
 
       <div id="executions">
         <ExecutionLog />
+      </div>
+
+      <div id="events">
+        <EventFeed version={version} />
       </div>
 
       <div id="sensors">

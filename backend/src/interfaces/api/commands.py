@@ -8,6 +8,7 @@ from application.actuators.service import build_actuator_port
 from application.commands.dto import CommandLogDto, CommandRequest
 from application.commands.service import CommandService
 from application.devices.actuator_state_service import ActuatorNotFoundError
+from application.event_bus import event_bus
 from domain.commands.base import UnknownCommandError
 from infrastructure.db import get_db
 from infrastructure.persistence.actuator_state_repository import (
@@ -27,6 +28,7 @@ def _service(db: Session) -> CommandService:
         ActuatorStateRepository(db),
         CommandLogRepository(db),
         build_actuator_port(db),
+        event_bus,
     )
 
 
